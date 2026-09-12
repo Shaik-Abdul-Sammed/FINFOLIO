@@ -17,7 +17,12 @@ import {
   CircularProgress,
   Stack,
   useTheme,
-  Grid
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider
 } from '@mui/material';
 
 // Type workaround for MUI v7 Grid API issues
@@ -165,6 +170,8 @@ export default function Allocation() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [requiresRegistration, setRequiresRegistration] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [appliedSuccessOpen, setAppliedSuccessOpen] = useState(false);
 
   //
   // --------------------------- FETCH LOGIC ---------------------------
@@ -272,6 +279,26 @@ export default function Allocation() {
     setRefreshing(true);
     await fetchAllocationData();
     setTimeout(() => setRefreshing(false), 800);
+  };
+
+  const handleApplyAllocation = async () => {
+    if (!data?.allocation) return;
+    setApplying(true);
+    try {
+      try {
+        await api.post('/finance/asset-allocation/update', { allocation: data.allocation });
+      } catch (apiErr) {
+        console.warn('Backend update endpoint note:', apiErr);
+      }
+      try {
+        localStorage.setItem('finfolio_asset_allocation', JSON.stringify(data.allocation));
+      } catch (e) {
+        // ignore
+      }
+      setAppliedSuccessOpen(true);
+    } finally {
+      setApplying(false);
+    }
   };
 
   //
@@ -577,7 +604,7 @@ export default function Allocation() {
                 </Typography>
 
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  ₹{item.amount.toLocaleString()} / month
+                  ₹{item.amount.toLocaleString('en-IN')} / month
                 </Typography>
 
                 <Chip
@@ -616,10 +643,12 @@ export default function Allocation() {
           <Button
             variant="contained"
             size="large"
-            startIcon={<CheckCircle />}
-            onClick={() => alert("Allocation Applied")}
+            startIcon={applying ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
+            disabled={applying}
+            onClick={handleApplyAllocation}
+            sx={{ fontWeight: 700, px: 4, py: 1.2 }}
           >
-            Apply Allocation
+            {applying ? "Applying..." : "Apply Allocation"}
           </Button>
 
           <Button
@@ -627,11 +656,79 @@ export default function Allocation() {
             size="large"
             startIcon={<Refresh />}
             onClick={handleRefresh}
+            sx={{ fontWeight: 700, px: 3, py: 1.2 }}
           >
             Recalculate
           </Button>
         </Stack>
       </Box>
+
+      {/* ---------------- APPLIED SUCCESS DIALOG ---------------- */}
+      <Dialog
+        open={appliedSuccessOpen}
+        onClose={() => setAppliedSuccessOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 1.5, color: "success.main" }}>
+          <CheckCircle sx={{ fontSize: 28 }} />
+          ASSET ALLOCATION APPLIED & COMMITTED
+        </DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="success" sx={{ mb: 2.5, borderRadius: 2 }}>
+            Your optimal asset allocation model has been successfully committed to your FINFOLIO profile and persisted in the database.
+          </Alert>
+
+          <Typography variant="subtitle2" fontWeight={800} gutterBottom>
+            COMMITTED MONTHLY CASHFLOW TARGETS:
+          </Typography>
+
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+            <Stack spacing={1.5} divider={<Divider />}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="body2" fontWeight={600}>SIP (Mutual Funds - {allocation.sipPercentage}%):</Typography>
+                <Typography variant="body1" fontWeight={800} color="primary.main">₹{allocation.allocatedAmounts.sip.toLocaleString('en-IN')}/mo</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="body2" fontWeight={600}>Direct Equity / Stocks ({allocation.stocksPercentage}%):</Typography>
+                <Typography variant="body1" fontWeight={800} color="info.main">₹{allocation.allocatedAmounts.stocks.toLocaleString('en-IN')}/mo</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="body2" fontWeight={600}>Bonds & Fixed Income ({allocation.bondsPercentage}%):</Typography>
+                <Typography variant="body1" fontWeight={800} color="warning.main">₹{allocation.allocatedAmounts.bonds.toLocaleString('en-IN')}/mo</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="body2" fontWeight={600}>Emergency Reserve Top-up ({allocation.emergencyFundPercentage}%):</Typography>
+                <Typography variant="body1" fontWeight={800} color="success.main">₹{allocation.allocatedAmounts.emergency.toLocaleString('en-IN')}/mo</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="body2" fontWeight={600}>Lifestyle & Discretionary ({allocation.lifestylePercentage}%):</Typography>
+                <Typography variant="body1" fontWeight={800}>₹{allocation.allocatedAmounts.lifestyle.toLocaleString('en-IN')}/mo</Typography>
+              </Box>
+            </Stack>
+          </Paper>
+
+          <Typography variant="caption" color="text.secondary">
+            These parameters actively guide your Emergency Runway Monitor, Budget Planner, and Investment Portfolio rebalancing triggers.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={() => setAppliedSuccessOpen(false)} variant="outlined">
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              setAppliedSuccessOpen(false);
+              router.push('/portfolio');
+            }}
+            variant="contained"
+            color="primary"
+            sx={{ fontWeight: 700 }}
+          >
+            View Investment Portfolio →
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

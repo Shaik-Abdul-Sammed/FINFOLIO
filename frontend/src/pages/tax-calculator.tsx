@@ -52,10 +52,9 @@ const TaxCalculator = () => {
         nps: 50000,
     });
 
-    // Convert INR to USD base for formatAmount
+    // Standard INR formatting via formatAmount
     const formatINR = (valInINR: number, compact = false) => {
-        const valInUSD = (valInINR || 0) / 83.5;
-        return formatAmount(valInUSD, { compact });
+        return formatAmount(valInINR || 0, { compact });
     };
 
     const calculateTaxForRegime = (
@@ -593,8 +592,8 @@ const TaxCalculator = () => {
                                             <BarChart
                                                 data={comparisonData.map(d => ({
                                                     name: d.name,
-                                                    taxUSD: d.tax / 83.5,
-                                                    takeHomeUSD: d.takeHome / 83.5,
+                                                    tax: d.tax,
+                                                    takeHome: d.takeHome,
                                                 }))}
                                             >
                                                 <XAxis dataKey="name" stroke="#94a3b8" />
@@ -613,13 +612,13 @@ const TaxCalculator = () => {
                                                 />
                                                 <Legend />
                                                 <Bar
-                                                    dataKey="taxUSD"
+                                                    dataKey="tax"
                                                     name="Tax Payable"
                                                     fill="#ef4444"
                                                     radius={[6, 6, 0, 0]}
                                                 />
                                                 <Bar
-                                                    dataKey="takeHomeUSD"
+                                                    dataKey="takeHome"
                                                     name="Net Take-Home"
                                                     fill="#10b981"
                                                     radius={[6, 6, 0, 0]}

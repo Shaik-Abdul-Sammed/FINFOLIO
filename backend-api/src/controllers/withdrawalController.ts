@@ -105,10 +105,15 @@ export const executeApprovedWithdrawal = async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'Invalid request ID.' });
     }
 
-    const result = await WithdrawalService.executeApprovedWithdrawal(userId, requestId);
+    const { pin } = req.body;
+    if (!pin) {
+      return res.status(400).json({ error: 'Security PIN is required to execute withdrawal.' });
+    }
+
+    const result = await WithdrawalService.executeApprovedWithdrawal(userId, requestId, pin);
     return res.json({
       success: true,
-      message: `Approved withdrawal of $${result.request.amount.toFixed(2)} executed successfully.`,
+      message: `Approved withdrawal of ₹${result.request.amount.toFixed(2)} executed successfully.`,
       ...result,
     });
   } catch (error: any) {

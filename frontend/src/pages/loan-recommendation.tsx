@@ -1,11 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Box,
+  TextField,
+  Button,
+  Chip,
+  LinearProgress,
+  Paper,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Alert,
+  Divider,
+} from '@mui/material';
+import {
+  AccountBalance,
+  Calculate,
+  ContentCopy,
+  Download,
+  Share,
+  RestartAlt,
+  TrendingDown,
+  TrendingUp,
+  CheckCircle,
+  Warning,
+  ErrorOutline,
+  Speed,
+  Shield,
+  SwapHoriz,
+} from '@mui/icons-material';
 import api from '@/utils/axiosClient';
 import {
   buildRecommendationSummary,
   calculateEmi,
   formatInr,
   getCreditBand,
-  getDecisionBadgeClass,
   getFoirBand,
   normalizeLoanRequest,
   validateLoanRequest,
@@ -13,6 +49,9 @@ import {
   type LoanRecommendationResponse,
   type ValidationErrors,
 } from '@/utils/loanRecommendation';
+
+// Workaround for MUI v7 Grid typings
+const GridTyped = Grid as any;
 
 const initialForm: LoanRecommendationRequest = {
   annualIncome: 1200000,
@@ -86,7 +125,7 @@ export default function LoanRecommendationPage() {
       const parsed = JSON.parse(cached) as LoanRecommendationRequest;
       setForm(parsed);
     } catch {
-      // Ignore corrupted cache values.
+      // Ignore corrupted cache
     }
   }, []);
 
@@ -131,7 +170,7 @@ export default function LoanRecommendationPage() {
     };
   }, [form, result]);
 
-  // Refinancing Break-Even Calculator State & Memo
+  // Refinancing Calculator State
   const [refinanceBalance, setRefinanceBalance] = useState(600000);
   const [currentRate, setCurrentRate] = useState(13.5);
   const [newRate, setNewRate] = useState(9.25);
@@ -159,14 +198,10 @@ export default function LoanRecommendationPage() {
     };
   }, [refinanceBalance, currentRate, newRate, refinanceTenure, closingFeePercent]);
 
-  const onNumberChange = (key: keyof LoanRecommendationRequest) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const onNumberChange = (key: keyof LoanRecommendationRequest) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = event.target.value;
     setForm((prev) => ({ ...prev, [key]: Number(rawValue) }));
     setFormErrors((prev) => ({ ...prev, [key]: undefined }));
-  };
-
-  const onTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, loanType: event.target.value as LoanRecommendationRequest['loanType'] }));
   };
 
   const submitRecommendation = async (event: React.FormEvent) => {
@@ -228,426 +263,662 @@ export default function LoanRecommendationPage() {
     try {
       await navigator.clipboard.writeText(buildRecommendationSummary(result));
       setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 3000);
     } catch {
       setCopyState('failed');
     }
   };
 
+  const shareOnWhatsApp = () => {
+    if (!result) return;
+    const summary = buildRecommendationSummary(result);
+    const shareText = `📊 *FINFOLIO Loan Underwriting & Affordability Analysis*\n\n${summary}\n\nPlatform: FINFOLIO — Indian Employee Resilience Engine`;
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(shareUrl, '_blank');
+  };
+
+  const getDecisionChipColor = (decision: string): 'success' | 'warning' | 'error' => {
+    if (decision === 'approved') return 'success';
+    if (decision === 'declined') return 'error';
+    return 'warning';
+  };
+
   return (
-    <div className="container py-4">
-      <div className="p-4 p-md-5 rounded-4 text-white mb-4" style={{ background: 'linear-gradient(120deg, #0a4f8f 0%, #0d9488 100%)' }}>
-        <h1 className="display-6 fw-bold mb-2">Loan Recommendation Engine</h1>
-        <p className="mb-0 fs-5">
-          Real-world underwriting check using affordability, credit behavior, and historical default trends.
-        </p>
-      </div>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Header Banner */}
+      <Box sx={{ mb: 4 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 4,
+            background: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(14,116,144,0.6), rgba(15,23,42,0.95))'
+                : 'linear-gradient(135deg, #0a4f8f 0%, #0d9488 100%)',
+            color: '#ffffff',
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" fontWeight="800">
+                🏛️ Loan Advisor &amp; Institutional Underwriting
+              </Typography>
+              <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.8, maxWidth: 850 }}>
+                Real-world bank underwriting checks using affordability (FOIR), credit behavior (CIBIL), and RBI guidelines exclusively calibrated in Indian Rupees (₹).
+              </Typography>
+            </Box>
+            <Chip
+              label="🇮🇳 Indian Rupee (₹) Only"
+              sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#ffffff', fontWeight: 700 }}
+            />
+          </Box>
+        </Paper>
+      </Box>
 
-      <div className="row g-4">
-        <div className="col-12 col-lg-5">
-          <div className="card shadow-sm border-0 rounded-4 h-100">
-            <div className="card-body p-4">
-              <h2 className="h4 fw-bold mb-3">Applicant Profile</h2>
+      <GridTyped container spacing={3.5}>
+        {/* Left Column: Applicant Profile Form */}
+        <GridTyped item xs={12} lg={5}>
+          <Card sx={{ p: 3, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Typography variant="h6" fontWeight="800" sx={{ mb: 2 }}>
+              1. Applicant Profile &amp; Debt Request
+            </Typography>
 
-              <div className="mb-3">
-                <div className="small text-muted mb-2">Quick Profiles</div>
-                <div className="d-flex flex-wrap gap-2">
-                  {PROFILE_PRESETS.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => applyPreset(preset.data)}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Presets */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="700" sx={{ display: 'block', mb: 1 }}>
+                ⚡ Quick Profiles:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {PROFILE_PRESETS.map((preset) => (
+                  <Chip
+                    key={preset.label}
+                    label={preset.label}
+                    onClick={() => applyPreset(preset.data)}
+                    variant="outlined"
+                    size="small"
+                    clickable
+                    sx={{ fontWeight: 600, borderRadius: 2 }}
+                  />
+                ))}
+              </Stack>
+            </Box>
 
-              <form onSubmit={submitRecommendation}>
-                <div className="mb-3">
-                  <label htmlFor="loanType" className="form-label">Loan Type</label>
-                  <select id="loanType" className="form-select" value={form.loanType} onChange={onTypeChange}>
-                    <option value="personal_loan">Personal Loan</option>
-                    <option value="home_loan">Home Loan</option>
-                    <option value="car_loan">Car Loan</option>
-                    <option value="education_loan">Education Loan</option>
-                    <option value="business_loan">Business Loan</option>
-                  </select>
-                </div>
+            <Box component="form" onSubmit={submitRecommendation}>
+              <Stack spacing={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="loanType-label">Loan Type</InputLabel>
+                  <Select
+                    labelId="loanType-label"
+                    value={form.loanType}
+                    label="Loan Type"
+                    onChange={(e) => setForm((prev) => ({ ...prev, loanType: e.target.value as any }))}
+                  >
+                    <MenuItem value="personal_loan">Personal Loan</MenuItem>
+                    <MenuItem value="home_loan">Home Loan</MenuItem>
+                    <MenuItem value="car_loan">Car Loan</MenuItem>
+                    <MenuItem value="education_loan">Education Loan</MenuItem>
+                    <MenuItem value="business_loan">Business Loan</MenuItem>
+                  </Select>
+                </FormControl>
 
-                <div className="row g-3">
-                  <div className="col-12">
-                    <label htmlFor="annualIncome" className="form-label">Annual Income (INR)</label>
-                    <input id="annualIncome" type="number" className="form-control" value={form.annualIncome} onChange={onNumberChange('annualIncome')} min={0} />
-                    {formErrors.annualIncome && <div className="text-danger small mt-1">{formErrors.annualIncome}</div>}
-                  </div>
-                  <div className="col-12">
-                    <label htmlFor="monthlyExpenses" className="form-label">Monthly Expenses (INR)</label>
-                    <input id="monthlyExpenses" type="number" className="form-control" value={form.monthlyExpenses} onChange={onNumberChange('monthlyExpenses')} min={0} />
-                    {formErrors.monthlyExpenses && <div className="text-danger small mt-1">{formErrors.monthlyExpenses}</div>}
-                  </div>
-                  <div className="col-12">
-                    <label htmlFor="existingEmi" className="form-label">Existing EMI Obligations (INR)</label>
-                    <input id="existingEmi" type="number" className="form-control" value={form.existingEmi} onChange={onNumberChange('existingEmi')} min={0} />
-                    {formErrors.existingEmi && <div className="text-danger small mt-1">{formErrors.existingEmi}</div>}
-                  </div>
-                  <div className="col-12">
-                    <label htmlFor="desiredLoanAmount" className="form-label">Desired Loan Amount (INR)</label>
-                    <input id="desiredLoanAmount" type="number" className="form-control" value={form.desiredLoanAmount} onChange={onNumberChange('desiredLoanAmount')} min={10000} />
-                    {formErrors.desiredLoanAmount && <div className="text-danger small mt-1">{formErrors.desiredLoanAmount}</div>}
-                  </div>
-                  <div className="col-6">
-                    <label htmlFor="tenureMonths" className="form-label">Tenure (Months)</label>
-                    <input id="tenureMonths" type="number" className="form-control" value={form.tenureMonths} onChange={onNumberChange('tenureMonths')} min={6} max={360} />
-                    {formErrors.tenureMonths && <div className="text-danger small mt-1">{formErrors.tenureMonths}</div>}
-                  </div>
-                  <div className="col-6">
-                    <label htmlFor="creditScore" className="form-label">Credit Score</label>
-                    <input id="creditScore" type="number" className="form-control" value={form.creditScore} onChange={onNumberChange('creditScore')} min={300} max={900} />
-                    {formErrors.creditScore && <div className="text-danger small mt-1">{formErrors.creditScore}</div>}
-                  </div>
-                  <div className="col-12">
-                    <label htmlFor="employmentYears" className="form-label">Employment Stability (Years)</label>
-                    <input id="employmentYears" type="number" className="form-control" value={form.employmentYears} onChange={onNumberChange('employmentYears')} min={0} max={40} />
-                    {formErrors.employmentYears && <div className="text-danger small mt-1">{formErrors.employmentYears}</div>}
-                  </div>
-                </div>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Annual Income"
+                  type="number"
+                  value={form.annualIncome}
+                  onChange={onNumberChange('annualIncome')}
+                  error={Boolean(formErrors.annualIncome)}
+                  helperText={formErrors.annualIncome}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  }}
+                />
 
-                <div className="mt-3">
-                  <div className="small text-muted mb-2">Tenure Presets</div>
-                  <div className="d-flex flex-wrap gap-2">
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Monthly Expenses"
+                  type="number"
+                  value={form.monthlyExpenses}
+                  onChange={onNumberChange('monthlyExpenses')}
+                  error={Boolean(formErrors.monthlyExpenses)}
+                  helperText={formErrors.monthlyExpenses}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Existing EMI Obligations"
+                  type="number"
+                  value={form.existingEmi}
+                  onChange={onNumberChange('existingEmi')}
+                  error={Boolean(formErrors.existingEmi)}
+                  helperText={formErrors.existingEmi}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Desired Loan Amount"
+                  type="number"
+                  value={form.desiredLoanAmount}
+                  onChange={onNumberChange('desiredLoanAmount')}
+                  error={Boolean(formErrors.desiredLoanAmount)}
+                  helperText={formErrors.desiredLoanAmount}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  }}
+                />
+
+                <GridTyped container spacing={2}>
+                  <GridTyped item xs={6}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Tenure (Months)"
+                      type="number"
+                      value={form.tenureMonths}
+                      onChange={onNumberChange('tenureMonths')}
+                      error={Boolean(formErrors.tenureMonths)}
+                      helperText={formErrors.tenureMonths}
+                    />
+                  </GridTyped>
+                  <GridTyped item xs={6}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Credit Score (CIBIL)"
+                      type="number"
+                      value={form.creditScore}
+                      onChange={onNumberChange('creditScore')}
+                      error={Boolean(formErrors.creditScore)}
+                      helperText={formErrors.creditScore}
+                    />
+                  </GridTyped>
+                </GridTyped>
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Employment Stability (Years)"
+                  type="number"
+                  value={form.employmentYears}
+                  onChange={onNumberChange('employmentYears')}
+                  error={Boolean(formErrors.employmentYears)}
+                  helperText={formErrors.employmentYears}
+                />
+
+                {/* Tenure Shortcuts */}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="700" sx={{ display: 'block', mb: 0.8 }}>
+                    Tenure Shortcuts:
+                  </Typography>
+                  <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
                     {TENURE_PRESETS.map((months) => (
-                      <button
+                      <Chip
                         key={months}
-                        type="button"
-                        className={`btn btn-sm ${form.tenureMonths === months ? 'btn-primary' : 'btn-outline-primary'}`}
+                        label={`${months}m`}
+                        size="small"
+                        color={form.tenureMonths === months ? 'primary' : 'default'}
+                        variant={form.tenureMonths === months ? 'filled' : 'outlined'}
                         onClick={() => setForm((prev) => ({ ...prev, tenureMonths: months }))}
-                      >
-                        {months}m
-                      </button>
+                        clickable
+                      />
                     ))}
-                  </div>
-                </div>
+                  </Stack>
+                </Box>
 
-                <div className="alert alert-info mt-3 mb-3" role="status">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Current FOIR before new loan: <strong>{currentFoir}%</strong></span>
-                    <span className={`badge ${currentFoirBand.className}`}>{currentFoirBand.label}</span>
-                  </div>
-                  <div className="progress mt-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={currentFoir}>
-                    <div className={`progress-bar ${currentFoir > 45 ? 'bg-danger' : currentFoir > 35 ? 'bg-warning' : 'bg-success'}`} style={{ width: `${Math.min(currentFoir, 100)}%` }} />
-                  </div>
-                </div>
+                {/* Live Underwriter FOIR Preview */}
+                <Paper sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="700">
+                      Current FOIR (Before New Loan)
+                    </Typography>
+                    <Chip
+                      label={`${currentFoir}% • ${currentFoirBand.label}`}
+                      size="small"
+                      color={currentFoir > 45 ? 'error' : currentFoir > 35 ? 'warning' : 'success'}
+                      sx={{ fontWeight: 800, fontSize: '0.72rem' }}
+                    />
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(100, currentFoir)}
+                    color={currentFoir > 45 ? 'error' : currentFoir > 35 ? 'warning' : 'success'}
+                    sx={{ height: 6, borderRadius: 3, mb: 1.5 }}
+                  />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Est. EMI @ {estimatedRate}% APR:
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight="800" color="primary.main">
+                      {formatInr(estimatedEmi)} / mo
+                    </Typography>
+                  </Box>
+                </Paper>
 
-                <div className="alert alert-light border mb-3" role="status">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Live EMI Estimate</span>
-                    <span className={`badge ${currentCreditBand.className}`}>Credit: {currentCreditBand.label}</span>
-                  </div>
-                  <div className="fw-bold mt-1">{formatInr(estimatedEmi)} / month</div>
-                  <div className="small text-muted">Estimated using {estimatedRate}% annual rate for quick preview.</div>
-                </div>
-
-                <div className="d-flex gap-2">
-                  <button type="submit" className="btn btn-primary w-100 fw-semibold" disabled={loading}>
-                    {loading ? 'Generating Recommendation...' : 'Get Recommendation'}
-                  </button>
-                  <button type="button" className="btn btn-outline-secondary" onClick={resetProfile}>
+                {/* Action Buttons */}
+                <Stack direction="row" spacing={1.5} sx={{ mt: 1 }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={loading}
+                    startIcon={<Calculate />}
+                    sx={{
+                      py: 1.2,
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      borderRadius: 2.5,
+                      background: 'linear-gradient(135deg, #0a4f8f 0%, #0d9488 100%)',
+                    }}
+                  >
+                    {loading ? 'Underwriting Analysis...' : 'Get Loan Recommendation'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    onClick={resetProfile}
+                    startIcon={<RestartAlt />}
+                    sx={{ borderRadius: 2.5, textTransform: 'none' }}
+                  >
                     Reset
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+                  </Button>
+                </Stack>
+              </Stack>
+            </Box>
+          </Card>
+        </GridTyped>
 
-        <div className="col-12 col-lg-7">
-          {!result && !error && (
-            <div className="card border-0 shadow-sm rounded-4 h-100">
-              <div className="card-body p-4 d-flex align-items-center justify-content-center text-center">
-                <div>
-                  <h3 className="h5 fw-bold">Ready for a lending decision</h3>
-                  <p className="text-muted mb-0">
-                    Submit profile details to generate approval probability, expected EMI, and actionable risk improvements.
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Right Column: Underwriting Results */}
+        <GridTyped item xs={12} lg={7}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>
+              {error}
+            </Alert>
           )}
 
-          {error && (
-            <div className="alert alert-danger rounded-4" role="alert">
-              {error}
-            </div>
+          {!result && !error && (
+            <Card sx={{ p: 5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box>
+                <Speed sx={{ fontSize: 56, color: 'primary.main', opacity: 0.8, mb: 1.5 }} />
+                <Typography variant="h5" fontWeight="800" gutterBottom>
+                  Ready for Institutional Underwriting
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 450, mx: 'auto' }}>
+                  Click &ldquo;Get Loan Recommendation&rdquo; to simulate commercial bank underwriting guidelines, evaluate debt capacity, and assess default likelihood.
+                </Typography>
+              </Box>
+            </Card>
           )}
 
           {result && (
-            <div className="card border-0 shadow-sm rounded-4">
-              <div className="card-body p-4">
-                <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                  <h2 className="h4 fw-bold mb-0">Recommendation Result</h2>
-                  <div className="d-flex gap-2 align-items-center">
-                    <span className={`badge ${getDecisionBadgeClass(result.decision)} text-uppercase px-3 py-2`}>
-                      {result.decision}
-                    </span>
-                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={copySummary}>Copy</button>
-                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={exportResultAsJson}>Export</button>
-                  </div>
-                </div>
+            <Card sx={{ p: 3.5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider' }}>
+              {/* Result Header & Actions */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="h6" fontWeight="800">
+                    Underwriting Decision
+                  </Typography>
+                  <Chip
+                    label={result.decision.toUpperCase()}
+                    color={getDecisionChipColor(result.decision)}
+                    sx={{ fontWeight: 900, letterSpacing: 0.5, px: 1 }}
+                  />
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ContentCopy fontSize="small" />}
+                    onClick={copySummary}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+                  >
+                    {copyState === 'copied' ? 'Copied!' : 'Copy'}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Download fontSize="small" />}
+                    onClick={exportResultAsJson}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+                  >
+                    Export
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<Share fontSize="small" />}
+                    onClick={shareOnWhatsApp}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontSize: '0.75rem',
+                      bgcolor: '#25D366',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      '&:hover': { bgcolor: '#128C7E' },
+                    }}
+                  >
+                    WhatsApp Share
+                  </Button>
+                </Stack>
+              </Box>
 
-                {copyState !== 'idle' && (
-                  <div className={`alert ${copyState === 'copied' ? 'alert-success' : 'alert-warning'} py-2`} role="status">
-                    {copyState === 'copied' ? 'Summary copied to clipboard.' : 'Copy not available in this browser context.'}
-                  </div>
-                )}
+              {/* 4 Key Metrics */}
+              <GridTyped container spacing={2} sx={{ mb: 3 }}>
+                <GridTyped item xs={6} sm={3}>
+                  <Paper sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="700">APPROVAL ODDS</Typography>
+                    <Typography variant="h5" fontWeight="900" color="primary.main" sx={{ mt: 0.5 }}>
+                      {result.approvalProbability}%
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+                <GridTyped item xs={6} sm={3}>
+                  <Paper sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="700">RATE OFFERED</Typography>
+                    <Typography variant="h5" fontWeight="900" color="text.primary" sx={{ mt: 0.5 }}>
+                      {result.recommendedInterestRate}%
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+                <GridTyped item xs={6} sm={3}>
+                  <Paper sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="700">EXPECTED EMI</Typography>
+                    <Typography variant="h5" fontWeight="900" color="success.main" sx={{ mt: 0.5 }}>
+                      {formatInr(result.expectedEmi)}
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+                <GridTyped item xs={6} sm={3}>
+                  <Paper sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="700">MAX ELIGIBLE</Typography>
+                    <Typography variant="h5" fontWeight="900" color="secondary.main" sx={{ mt: 0.5 }}>
+                      {formatInr(result.maxEligibleLoanAmount)}
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+              </GridTyped>
 
-                <div className="row g-3 mb-3">
-                  <div className="col-6 col-md-3">
-                    <div className="border rounded-3 p-3 h-100">
-                      <div className="text-muted small">Approval Odds</div>
-                      <div className="fw-bold fs-5">{result.approvalProbability}%</div>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <div className="border rounded-3 p-3 h-100">
-                      <div className="text-muted small">Rate</div>
-                      <div className="fw-bold fs-5">{result.recommendedInterestRate}%</div>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <div className="border rounded-3 p-3 h-100">
-                      <div className="text-muted small">Expected EMI</div>
-                      <div className="fw-bold fs-5">{formatInr(result.expectedEmi)}</div>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <div className="border rounded-3 p-3 h-100">
-                      <div className="text-muted small">Max Eligible</div>
-                      <div className="fw-bold fs-5">{formatInr(result.maxEligibleLoanAmount)}</div>
-                    </div>
-                  </div>
-                </div>
+              {/* Affordability & Benchmark Cards */}
+              <GridTyped container spacing={2} sx={{ mb: 3 }}>
+                <GridTyped item xs={12} sm={6}>
+                  <Paper sx={{ p: 2.5, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 1 }}>
+                      📊 Affordability Snapshot
+                    </Typography>
+                    <Stack spacing={0.8} sx={{ fontSize: '0.82rem' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">FOIR After Loan:</Typography>
+                        <Typography variant="body2" fontWeight="700">{result.affordability.foirAfterLoan}%</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Target FOIR Limit:</Typography>
+                        <Typography variant="body2" fontWeight="700">{result.affordability.maxAllowedFoir}%</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Max Affordable EMI:</Typography>
+                        <Typography variant="body2" fontWeight="700" color="success.main">{formatInr(result.affordability.maxAffordableEmi)}</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </GridTyped>
 
-                <div className="row g-3 mb-3">
-                  <div className="col-md-6">
-                    <div className="border rounded-3 p-3 h-100 bg-light-subtle">
-                      <h3 className="h6 fw-bold">Affordability Snapshot</h3>
-                      <ul className="mb-0 small">
-                        <li>FOIR after loan: {result.affordability.foirAfterLoan}%</li>
-                        <li>Target FOIR limit: {result.affordability.maxAllowedFoir}%</li>
-                        <li>Max affordable EMI: {formatInr(result.affordability.maxAffordableEmi)}</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="border rounded-3 p-3 h-100 bg-light-subtle">
-                      <h3 className="h6 fw-bold">Historical Benchmarks</h3>
-                      <ul className="mb-0 small">
-                        <li>Default rate in similar cohort: {result.historicalSignals.historicalDefaultRate}%</li>
-                        <li>Benchmark approval rate: {result.historicalSignals.benchmarkApprovalRate}%</li>
-                        <li>Analyzed sample size: {result.historicalSignals.sampleSize.toLocaleString('en-IN')}</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+                <GridTyped item xs={12} sm={6}>
+                  <Paper sx={{ p: 2.5, borderRadius: 2.5, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 1 }}>
+                      🏛️ Historical Cohort Signals
+                    </Typography>
+                    <Stack spacing={0.8} sx={{ fontSize: '0.82rem' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Cohort Default Rate:</Typography>
+                        <Typography variant="body2" fontWeight="700">{result.historicalSignals.historicalDefaultRate}%</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Benchmark Approval Rate:</Typography>
+                        <Typography variant="body2" fontWeight="700">{result.historicalSignals.benchmarkApprovalRate}%</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Sample Size Analysed:</Typography>
+                        <Typography variant="body2" fontWeight="700">{result.historicalSignals.sampleSize.toLocaleString('en-IN')}</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </GridTyped>
+              </GridTyped>
 
-                {stressScenario && (
-                  <div className="border rounded-3 p-3 mb-3 bg-warning-subtle">
-                    <h3 className="h6 fw-bold mb-2">Stress Scenario (Expenses +10%, Rate +1%)</h3>
-                    <div className="row g-2 small">
-                      <div className="col-4">Repriced EMI: <strong>{formatInr(stressScenario.stressedEmi)}</strong></div>
-                      <div className="col-4">Repriced Rate: <strong>{stressScenario.stressedRate}%</strong></div>
-                      <div className="col-4">FOIR Under Stress: <strong>{stressScenario.stressedFoir}%</strong></div>
-                    </div>
-                  </div>
-                )}
+              {/* Stress Scenario */}
+              {stressScenario && (
+                <Paper sx={{ p: 2.5, borderRadius: 2.5, mb: 3, bgcolor: 'warning.main', color: '#1e293b', background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))', border: '1px solid', borderColor: 'warning.main' }}>
+                  <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Warning fontSize="small" color="warning" /> Stress Scenario (+10% Living Costs, +1% Interest Spike)
+                  </Typography>
+                  <GridTyped container spacing={2} sx={{ mt: 0.5 }}>
+                    <GridTyped item xs={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">Stressed EMI</Typography>
+                      <Typography variant="subtitle2" fontWeight="800">{formatInr(stressScenario.stressedEmi)}</Typography>
+                    </GridTyped>
+                    <GridTyped item xs={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">Stressed Rate</Typography>
+                      <Typography variant="subtitle2" fontWeight="800">{stressScenario.stressedRate}%</Typography>
+                    </GridTyped>
+                    <GridTyped item xs={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">FOIR Under Shock</Typography>
+                      <Typography variant="subtitle2" fontWeight="800" color={stressScenario.stressedFoir > 50 ? 'error.main' : 'warning.main'}>
+                        {stressScenario.stressedFoir}%
+                      </Typography>
+                    </GridTyped>
+                  </GridTyped>
+                </Paper>
+              )}
 
-                <div className="border rounded-3 p-3 mb-3 bg-light">
-                  <h3 className="h6 fw-bold">10 Smart Features Active</h3>
-                  <div className="small text-muted">
-                    Validation, profile presets, tenure shortcuts, FOIR meter, live EMI preview, credit banding, autosave,
-                    stress testing, copy summary, and JSON export.
-                  </div>
-                </div>
-
-                <h3 className="h6 fw-bold">Key Reasons</h3>
-                <ul>
-                  {result.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
+              {/* Key Reasons & Action Plan */}
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 1 }}>
+                  Underwriter Findings
+                </Typography>
+                <Stack spacing={0.8}>
+                  {result.reasons.map((reason, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <CheckCircle fontSize="small" color="primary" sx={{ mt: 0.2, fontSize: 16 }} />
+                      <Typography variant="body2">{reason}</Typography>
+                    </Box>
                   ))}
-                </ul>
+                </Stack>
+              </Box>
 
-                <h3 className="h6 fw-bold">Action Plan</h3>
-                <ul className="mb-0">
-                  {result.recommendations.map((recommendation) => (
-                    <li key={recommendation}>{recommendation}</li>
+              <Divider sx={{ my: 2 }} />
+
+              <Box>
+                <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 1 }}>
+                  Actionable Next Steps
+                </Typography>
+                <Stack spacing={0.8}>
+                  {result.recommendations.map((rec, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <Shield fontSize="small" color="success" sx={{ mt: 0.2, fontSize: 16 }} />
+                      <Typography variant="body2">{rec}</Typography>
+                    </Box>
                   ))}
-                </ul>
-              </div>
-            </div>
+                </Stack>
+              </Box>
+            </Card>
           )}
-        </div>
-      </div>
+        </GridTyped>
+      </GridTyped>
 
-      {/* Production Underwriting & Refinancing Module */}
-      <div className="row g-4 mt-2">
-        <div className="col-12 col-lg-7">
-          <div className="card shadow-sm border-0 rounded-4">
-            <div className="card-body p-4">
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <h3 className="h5 fw-bold mb-0">🔄 Loan Refinancing &amp; Debt Break-Even Calculator</h3>
-                <span className={`badge ${refinanceCalc.isViable ? 'bg-success' : 'bg-warning text-dark'} px-2 py-1`}>
-                  {refinanceCalc.isViable ? 'Refinancing Lucrative' : 'Evaluate Closely'}
-                </span>
-              </div>
-              <p className="text-muted small mb-4">
-                Calculate real interest savings and payback timeline when switching from high-cost debt (credit lines/old personal loans) to a lower-rate facility.
-              </p>
+      {/* Refinancing & Institutional Standards Section */}
+      <GridTyped container spacing={3.5} sx={{ mt: 2 }}>
+        <GridTyped item xs={12} lg={7}>
+          <Card sx={{ p: 3.5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SwapHoriz color="primary" />
+                <Typography variant="h6" fontWeight="800">
+                  Loan Refinancing &amp; Debt Break-Even Calculator
+                </Typography>
+              </Box>
+              <Chip
+                label={refinanceCalc.isViable ? 'Refinancing Lucrative' : 'Evaluate Closely'}
+                color={refinanceCalc.isViable ? 'success' : 'warning'}
+                size="small"
+                sx={{ fontWeight: 800 }}
+              />
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Calculate net interest savings and breakeven month when switching from high-cost debt to a lower-interest facility in Indian Rupees (₹).
+            </Typography>
 
-              <div className="row g-3 mb-4">
-                <div className="col-md-6">
-                  <label className="form-label small fw-semibold">Outstanding Loan Balance (₹)</label>
-                  <input
-                    type="number"
-                    className="form-control form-control-sm"
-                    value={refinanceBalance}
-                    onChange={(e) => setRefinanceBalance(Number(e.target.value))}
-                    min={10000}
-                    step={10000}
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label small fw-semibold">Remaining Tenure (Months)</label>
-                  <input
-                    type="number"
-                    className="form-control form-control-sm"
-                    value={refinanceTenure}
-                    onChange={(e) => setRefinanceTenure(Number(e.target.value))}
-                    min={6}
-                    max={360}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label small fw-semibold">Current Rate (% p.a.)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="form-control form-control-sm"
-                    value={currentRate}
-                    onChange={(e) => setCurrentRate(Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label small fw-semibold">New Refinanced Rate (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="form-control form-control-sm"
-                    value={newRate}
-                    onChange={(e) => setNewRate(Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label small fw-semibold">Processing Fee (%)</label>
-                  <input
-                    type="number"
-                    step="0.25"
-                    className="form-control form-control-sm"
-                    value={closingFeePercent}
-                    onChange={(e) => setClosingFeePercent(Number(e.target.value))}
-                  />
-                </div>
-              </div>
+            <GridTyped container spacing={2} sx={{ mb: 3 }}>
+              <GridTyped item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Outstanding Loan Balance"
+                  type="number"
+                  value={refinanceBalance}
+                  onChange={(e) => setRefinanceBalance(Number(e.target.value))}
+                  InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
+                />
+              </GridTyped>
+              <GridTyped item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Remaining Tenure (Months)"
+                  type="number"
+                  value={refinanceTenure}
+                  onChange={(e) => setRefinanceTenure(Number(e.target.value))}
+                />
+              </GridTyped>
+              <GridTyped item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Current Rate (% p.a.)"
+                  type="number"
+                  value={currentRate}
+                  onChange={(e) => setCurrentRate(Number(e.target.value))}
+                />
+              </GridTyped>
+              <GridTyped item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="New Refinanced Rate (% p.a.)"
+                  type="number"
+                  value={newRate}
+                  onChange={(e) => setNewRate(Number(e.target.value))}
+                />
+              </GridTyped>
+              <GridTyped item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Processing Fee (%)"
+                  type="number"
+                  value={closingFeePercent}
+                  onChange={(e) => setClosingFeePercent(Number(e.target.value))}
+                />
+              </GridTyped>
+            </GridTyped>
 
-              {/* Metrics Output Grid */}
-              <div className="row g-3">
-                <div className="col-6 col-md-3">
-                  <div className="border rounded-3 p-3 bg-light text-center">
-                    <div className="text-muted small">Current EMI</div>
-                    <div className="fw-bold fs-6 text-danger">{formatInr(refinanceCalc.currentEmi)}</div>
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="border rounded-3 p-3 bg-light text-center">
-                    <div className="text-muted small">New EMI</div>
-                    <div className="fw-bold fs-6 text-success">{formatInr(refinanceCalc.newEmi)}</div>
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="border rounded-3 p-3 bg-light text-center">
-                    <div className="text-muted small">Monthly Relief</div>
-                    <div className="fw-bold fs-6 text-primary">+{formatInr(refinanceCalc.monthlySavings)}/mo</div>
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="border rounded-3 p-3 bg-light text-center">
-                    <div className="text-muted small">Break-Even Point</div>
-                    <div className="fw-bold fs-6 text-dark">{refinanceCalc.breakEvenMonths} Months</div>
-                  </div>
-                </div>
-              </div>
+            {/* Metric Results */}
+            <GridTyped container spacing={2} sx={{ mb: 2 }}>
+              <GridTyped item xs={6} sm={3}>
+                <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">Current EMI</Typography>
+                  <Typography variant="subtitle1" fontWeight="800" color="error.main">{formatInr(refinanceCalc.currentEmi)}</Typography>
+                </Paper>
+              </GridTyped>
+              <GridTyped item xs={6} sm={3}>
+                <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">New EMI</Typography>
+                  <Typography variant="subtitle1" fontWeight="800" color="success.main">{formatInr(refinanceCalc.newEmi)}</Typography>
+                </Paper>
+              </GridTyped>
+              <GridTyped item xs={6} sm={3}>
+                <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">Monthly Relief</Typography>
+                  <Typography variant="subtitle1" fontWeight="800" color="primary.main">+{formatInr(refinanceCalc.monthlySavings)}</Typography>
+                </Paper>
+              </GridTyped>
+              <GridTyped item xs={6} sm={3}>
+                <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">Break-Even</Typography>
+                  <Typography variant="subtitle1" fontWeight="800">{refinanceCalc.breakEvenMonths} Months</Typography>
+                </Paper>
+              </GridTyped>
+            </GridTyped>
 
-              <div className="mt-3 p-3 rounded-3 border bg-light-subtle d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="small text-muted">Estimated Net Lifetime Interest Saved (after ₹{refinanceCalc.upfrontFee.toLocaleString('en-IN')} fee)</div>
-                  <div className="fw-bold fs-5 text-success">
-                    {formatInr(refinanceCalc.netSavings)}
-                  </div>
-                </div>
-                <span className="badge bg-primary-subtle text-primary border border-primary px-3 py-2">
-                  Rate Delta: {(currentRate - newRate).toFixed(2)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Net Lifetime Savings (After ₹{refinanceCalc.upfrontFee.toLocaleString('en-IN')} upfront fee):</Typography>
+                <Typography variant="h6" fontWeight="900" color="success.main">{formatInr(refinanceCalc.netSavings)}</Typography>
+              </Box>
+              <Chip label={`Rate Delta: ${(currentRate - newRate).toFixed(2)}%`} color="primary" variant="outlined" sx={{ fontWeight: 800 }} />
+            </Paper>
+          </Card>
+        </GridTyped>
 
-        <div className="col-12 col-lg-5">
-          <div className="card shadow-sm border-0 rounded-4 h-100">
-            <div className="card-body p-4">
-              <h3 className="h5 fw-bold mb-3">🏛️ Institutional Underwriting Standards</h3>
-              <p className="text-muted small mb-3">
-                How commercial banks (Tier-1, NBFCs, and Digital Lenders) evaluate debt capacity:
-              </p>
+        <GridTyped item xs={12} lg={5}>
+          <Card sx={{ p: 3.5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Typography variant="h6" fontWeight="800" sx={{ mb: 1 }}>
+              🏛️ Institutional Underwriting Standards
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              How Indian commercial lenders evaluate debt affordability:
+            </Typography>
 
-              <div className="list-group list-group-flush mb-3">
-                <div className="list-group-item px-0 py-2 border-0">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-semibold small">Tier-1 Banks (SBI, HDFC, ICICI)</span>
-                    <span className="badge bg-success-subtle text-success border border-success">Max 45-50% FOIR</span>
-                  </div>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>
-                    Strict collateral and CIBIL &gt; 750 required. Rejects unsecured debt if existing EMIs exceed 50% net income.
-                  </p>
-                </div>
-                <div className="list-group-item px-0 py-2 border-0">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-semibold small">Top NBFCs (Bajaj, Tata Capital)</span>
-                    <span className="badge bg-primary-subtle text-primary border border-primary">Max 55% FOIR</span>
-                  </div>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>
-                    Accommodates self-employed and variable incentive structures; prices +1.5% to +2.5% higher APR.
-                  </p>
-                </div>
-                <div className="list-group-item px-0 py-2 border-0">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-semibold small">Fintech / Peer-to-Peer</span>
-                    <span className="badge bg-warning-subtle text-warning border border-warning">Max 60% FOIR</span>
-                  </div>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>
-                    High APR (16-24%), short tenure. Recommended only for bridge emergency funding or immediate high-cost debt consolidation.
-                  </p>
-                </div>
-              </div>
+            <Stack spacing={2} sx={{ mb: 2 }}>
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="700">Tier-1 Banks (SBI, HDFC, ICICI)</Typography>
+                  <Chip label="Max 45-50% FOIR" color="success" size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Strict collateral checks and CIBIL &gt; 750 required. Rejects unsecured debt if existing EMIs exceed 50% net monthly income.
+                </Typography>
+              </Paper>
 
-              <div className="alert alert-info py-2 px-3 mb-0 small" role="note">
-                💡 <strong>Underwriter Tip:</strong> Paying off smaller high-interest personal loans 3 months prior to applying for a home loan significantly drops your FOIR and unlocks the prime lending rate.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="700">Top NBFCs (Bajaj, Tata Capital)</Typography>
+                  <Chip label="Max 55% FOIR" color="primary" size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Accommodates variable incentives; prices ~1.5% to 2.5% higher APR with flexible eligibility.
+                </Typography>
+              </Paper>
+
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="700">Fintech / Peer-to-Peer</Typography>
+                  <Chip label="Max 60% FOIR" color="warning" size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Higher APR (16-24%), recommended only for short-term bridge liquidity or emergency consolidation.
+                </Typography>
+              </Paper>
+            </Stack>
+
+            <Alert severity="info" sx={{ borderRadius: 2, fontSize: '0.8rem' }}>
+              <strong>Underwriter Tip:</strong> Prepaying high-cost credit lines 3 months prior to applying for a home loan noticeably reduces your FOIR and unlocks prime lending rates.
+            </Alert>
+          </Card>
+        </GridTyped>
+      </GridTyped>
+    </Container>
   );
 }

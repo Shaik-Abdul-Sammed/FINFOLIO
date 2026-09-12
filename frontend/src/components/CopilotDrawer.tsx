@@ -25,6 +25,7 @@ import {
   WorkOutline as WorkIcon,
 } from '@mui/icons-material';
 import { useCurrency } from '@/context/CurrencyContext';
+import api from '@/utils/axiosClient';
 
 interface CopilotMessage {
   id: string;
@@ -51,11 +52,11 @@ export default function CopilotDrawer({ open, onClose, userContext }: CopilotDra
   const [loading, setLoading] = useState(false);
 
   const defaultContext = {
-    monthlyIncome: userContext?.monthlyIncome || 5500,
-    monthlyExpenses: userContext?.monthlyExpenses || 3200,
-    emergencyFund: userContext?.emergencyFund || 12000,
-    totalDebt: userContext?.totalDebt || 18000,
-    runwayMonths: userContext?.runwayMonths || 3.75,
+    monthlyIncome: userContext?.monthlyIncome || 65000,
+    monthlyExpenses: userContext?.monthlyExpenses || 35000,
+    emergencyFund: userContext?.emergencyFund || 210000,
+    totalDebt: userContext?.totalDebt || 288000,
+    runwayMonths: userContext?.runwayMonths || 6.0,
   };
 
   const [messages, setMessages] = useState<CopilotMessage[]>([
@@ -69,6 +70,16 @@ export default function CopilotDrawer({ open, onClose, userContext }: CopilotDra
 
   const QUICK_SCENARIOS = [
     {
+      icon: <TrendingUpIcon fontSize="small" sx={{ color: 'primary.main' }} />,
+      label: '🧮 Calculate EMI for ₹15 Lakh Loan',
+      prompt: 'Calculate EMI for ₹15 Lakh loan at 8.5% interest for 5 years',
+    },
+    {
+      icon: <TrendingUpIcon fontSize="small" sx={{ color: 'success.main' }} />,
+      label: '📈 Simulate 15% Salary Increment',
+      prompt: 'Calculate 15% salary hike impact on my cash flow and savings',
+    },
+    {
       icon: <WarningIcon fontSize="small" sx={{ color: 'warning.main' }} />,
       label: '🚨 What if I get laid off next month?',
       prompt: 'What happens if I get laid off next month? How long can I survive and what steps should I take?',
@@ -79,13 +90,8 @@ export default function CopilotDrawer({ open, onClose, userContext }: CopilotDra
       prompt: 'Should I use my emergency fund to pay off my 16% high-interest credit card debt right now?',
     },
     {
-      icon: <TrendingUpIcon fontSize="small" sx={{ color: 'success.main' }} />,
-      label: '🚗 Can I afford a new loan EMI?',
-      prompt: 'Can I afford a new loan with an EMI of ₹35,000/month given my current income and expenses?',
-    },
-    {
       icon: <WorkIcon fontSize="small" sx={{ color: 'info.main' }} />,
-      label: '💼 How do I protect my career from tech layoffs?',
+      label: '💼 Protect income against tech layoffs',
       prompt: 'How do I protect my income against tech layoffs and what high-demand skills should I train for?',
     },
   ];
@@ -175,9 +181,9 @@ Here is a summary of your financial health:
 Feel free to ask specific questions about budgeting, debt payoffs, tax optimization, or layoff planning!`;
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const query = textToSend || inputQuery;
-    if (!query.trim()) return;
+    if (!query.trim() || loading) return;
 
     const userMsg: CopilotMessage = {
       id: `user-${Date.now()}`,
@@ -190,7 +196,20 @@ Feel free to ask specific questions about budgeting, debt payoffs, tax optimizat
     setInputQuery('');
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const res = await api.post('/api/chat', {
+        message: query,
+        conversation: messages.slice(-6)
+      });
+      const botMsg: CopilotMessage = {
+        id: `bot-${Date.now()}`,
+        sender: 'assistant',
+        text: res.data.text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch (err: any) {
+      console.error('CopilotDrawer chat error, using fallback:', err);
       const botResponse = generateScenarioResponse(query);
       const botMsg: CopilotMessage = {
         id: `bot-${Date.now()}`,
@@ -199,8 +218,9 @@ Feel free to ask specific questions about budgeting, debt payoffs, tax optimizat
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, botMsg]);
+    } finally {
       setLoading(false);
-    }, 450);
+    }
   };
 
   return (

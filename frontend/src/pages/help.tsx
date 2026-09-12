@@ -32,8 +32,8 @@ const Help = () => {
             answer: 'Go to Settings and toggle the "Dark Mode" switch. Your preference will be saved automatically and applied across all pages.',
         },
         {
-            question: 'Can I track multiple currencies?',
-            answer: 'Yes! In Settings > Preferences, you can select your preferred currency. The system supports INR, USD, EUR, GBP, and more.',
+            question: 'What currency does FINFOLIO support?',
+            answer: 'FINFOLIO is engineered exclusively for Indian employees and salaried professionals, standardizing all financial intelligence, emergency runway, tax regimes, and wallet balances in Indian Rupee (₹/INR).',
         },
         {
             question: 'How do I delete my account?',

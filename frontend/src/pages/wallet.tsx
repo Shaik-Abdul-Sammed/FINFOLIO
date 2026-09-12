@@ -32,6 +32,11 @@ import {
   FormControl,
   Select,
   InputLabel,
+  Stack,
+  Divider,
+  useTheme,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   AccountBalanceWallet,
@@ -48,6 +53,9 @@ import {
   Search,
   Savings,
   Lock,
+  VerifiedUser,
+  Share as ShareIcon,
+  WhatsApp as WhatsAppIcon,
 } from '@mui/icons-material';
 import { useCurrency } from '@/context/CurrencyContext';
 import {
@@ -85,6 +93,7 @@ const withdrawalCategories = [
 
 const WalletPage = () => {
   const { currency, currencyInfo, formatAmount } = useCurrency();
+  const theme = useTheme();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
@@ -171,13 +180,51 @@ const WalletPage = () => {
     fetchWalletData();
   };
 
-  const handleExecuteApproved = async (requestId: number) => {
+  const [executingReq, setExecutingReq] = useState<WithdrawalRequest | null>(null);
+  const [executionStep, setExecutionStep] = useState<'confirm' | 'pin'>('confirm');
+  const [executePin, setExecutePin] = useState<string>('1234');
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [executedResult, setExecutedResult] = useState<{
+    amount: number;
+    previousBalance: number;
+    newBalance: number;
+    reason: string;
+    id: number;
+  } | null>(null);
+
+  const handleStartExecute = (req: WithdrawalRequest) => {
+    setExecutingReq(req);
+    setExecutionStep('confirm');
+    setExecutePin('1234');
+  };
+
+  const handleConfirmExecution = async () => {
+    if (!executingReq) return;
+    setIsExecuting(true);
+    setError(null);
     try {
-      const res = await withdrawalService.executeApproved(requestId);
-      setSuccessMsg(res.message);
+      const prevBal = currentBalance;
+      const res = await withdrawalService.executeApproved(executingReq.id, executePin);
+      const deducted = res.amountDeducted || executingReq.amount;
+      const prev = res.previousBalance !== undefined ? res.previousBalance : prevBal;
+      const newBal = res.newBalance !== undefined ? res.newBalance : Math.max(0, prevBal - deducted);
+
+      setExecutedResult({
+        amount: deducted,
+        previousBalance: prev,
+        newBalance: newBal,
+        reason: executingReq.reason,
+        id: executingReq.id,
+      });
+
+      setSuccessMsg(`Withdrawal of ₹${deducted.toLocaleString('en-IN')} executed successfully.`);
+      setExecutingReq(null);
+      setExecutionStep('confirm');
       fetchWalletData();
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to execute approved withdrawal');
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -223,6 +270,20 @@ const WalletPage = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleShareReceipt = (res: { amount: number; previousBalance?: number; newBalance?: number; reason: string; id?: any }) => {
+    const text = `🧾 *FINFOLIO Withdrawal & Payment Receipt*
+----------------------------------------
+• *Amount Deducted:* -${formatAmount(res.amount)}
+• *Purpose:* ${res.reason || 'Protected Withdrawal'}
+${res.previousBalance !== undefined ? `• *Previous Balance:* ${formatAmount(res.previousBalance)}\n` : ''}${res.newBalance !== undefined ? `• *New Wallet Balance:* ${formatAmount(res.newBalance)}\n` : ''}• *Nominee Governance:* Verified & Approved
+• *Execution Status:* Authenticated via PIN
+----------------------------------------
+Platform: FINFOLIO — Indian Employee Financial Resilience Engine`;
+
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, '_blank');
   };
 
   const filteredTransactions = transactions.filter((tx) => {
@@ -643,6 +704,7 @@ const WalletPage = () => {
                     <TableCell sx={{ fontWeight: 700 }}>Reason / Notes</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="right">Amount</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Receipt</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -698,6 +760,21 @@ const WalletPage = () => {
                             variant="outlined"
                           />
                         </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Share Receipt via WhatsApp">
+                            <IconButton
+                              size="small"
+                              sx={{ color: '#25D366' }}
+                              onClick={() => handleShareReceipt({
+                                amount: tx.amount,
+                                reason: tx.reason || `${isDeposit ? 'Deposit' : 'Withdrawal'} (${tx.category})`,
+                                id: tx.id
+                              })}
+                            >
+                              <WhatsAppIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -707,6 +784,188 @@ const WalletPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* 🛡️ APPROVED BY TRUSTED NOMINEE HERO CARDS */}
+      {withdrawalRequests.filter(r => r.status === 'approved').map((req) => {
+        const amountToDeduct = req.amount;
+        const balanceAfter = Math.max(0, currentBalance - amountToDeduct);
+        return (
+          <Card
+            key={`approved-hero-${req.id}`}
+            sx={{
+              borderRadius: 3,
+              border: '2px solid #10b981',
+              bgcolor: alpha('#10b981', 0.04),
+              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.12)',
+              mt: 4,
+              mb: 2,
+            }}
+          >
+            <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+              {/* Header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <VerifiedUser sx={{ color: '#10b981', fontSize: 32 }} />
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#065f46', letterSpacing: '-0.01em' }}>
+                      APPROVED BY TRUSTED NOMINEE
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Withdrawal Request #{req.id} • Category: <strong>{req.category.replace(/_/g, ' ').toUpperCase()}</strong>
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Chip
+                  icon={<CheckCircle sx={{ color: '#ffffff !important' }} />}
+                  label="APPROVED • READY FOR EXECUTION"
+                  sx={{ bgcolor: '#10b981', color: '#ffffff', fontWeight: 800, px: 1 }}
+                />
+              </Box>
+
+              {/* Security Invariant Alert */}
+              <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2, bgcolor: alpha('#0284c7', 0.08), color: '#0369a1' }}>
+                <strong>Security Invariant:</strong> Nominee approval authorizes the request but does not transfer money. Your wallet balance changes only after you confirm execution and authenticate with your security PIN.
+              </Alert>
+
+              {/* Financial Breakdown Grid */}
+              <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                <Grid item xs={6} sm={4}>
+                  <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      REQUESTED AMOUNT
+                    </Typography>
+                    <Typography variant="h6" fontWeight={800}>
+                      {formatAmount(req.amount)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <Paper sx={{ p: 2, bgcolor: alpha('#10b981', 0.08), borderRadius: 2, border: '1px solid', borderColor: '#10b981' }}>
+                    <Typography variant="caption" sx={{ color: '#065f46', fontWeight: 700 }} display="block">
+                      APPROVED AMOUNT
+                    </Typography>
+                    <Typography variant="h6" fontWeight={900} sx={{ color: '#059669' }}>
+                      {formatAmount(req.amount)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      CURRENT WALLET BALANCE
+                    </Typography>
+                    <Typography variant="h6" fontWeight={800}>
+                      {formatAmount(currentBalance)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Paper sx={{ p: 2, bgcolor: alpha('#ef4444', 0.05), borderRadius: 2, border: '1px solid', borderColor: alpha('#ef4444', 0.3) }}>
+                    <Typography variant="caption" color="error.main" fontWeight={700} display="block">
+                      AMOUNT TO BE DEDUCTED
+                    </Typography>
+                    <Typography variant="h5" fontWeight={900} color="error.main">
+                      {formatAmount(amountToDeduct)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      (₹0 deducted until employee PIN verification)
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Paper sx={{ p: 2, bgcolor: alpha('#059669', 0.05), borderRadius: 2, border: '1px solid', borderColor: alpha('#059669', 0.3) }}>
+                    <Typography variant="caption" sx={{ color: '#047857', fontWeight: 700 }} display="block">
+                      BALANCE AFTER EXECUTION
+                    </Typography>
+                    <Typography variant="h5" fontWeight={900} sx={{ color: '#047857' }}>
+                      {formatAmount(balanceAfter)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      (Projected balance in savings wallet)
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* Purpose, Guidance, and Impact */}
+              <Paper sx={{ p: 2.2, bgcolor: 'background.paper', borderRadius: 2, mb: 2.5, border: '1px solid', borderColor: 'divider' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      PURPOSE / REASON
+                    </Typography>
+                    <Typography variant="body1" fontWeight={700}>
+                      {req.reason}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      NOMINEE DECISION
+                    </Typography>
+                    <Chip size="small" label="APPROVED" color="success" sx={{ fontWeight: 800, mt: 0.5 }} />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      NOMINEE GUIDANCE
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.primary', mt: 0.4 }}>
+                      {req.partnerNotes ? `"${req.partnerNotes}"` : 'Approved by your accountability partner. Ensure you confirm execution only when ready.'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      ESTIMATED GOAL IMPACT
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} color="warning.main">
+                      +{req.estimatedDelayDays} days
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      ESTIMATED RUNWAY IMPACT
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} color="error.main">
+                      -{req.runwayImpactMonths.toFixed(1)} months
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* State Machine Status Progression */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
+                <Chip size="small" label="PENDING (no deduction)" sx={{ opacity: 0.7 }} />
+                <Typography variant="caption" color="text.secondary">→</Typography>
+                <Chip size="small" label="APPROVED (no deduction)" color="info" sx={{ fontWeight: 700 }} />
+                <Typography variant="caption" color="text.secondary">→</Typography>
+                <Chip size="small" label="EXECUTION CONFIRMATION (still no deduction)" color="warning" sx={{ fontWeight: 700 }} />
+                <Typography variant="caption" color="text.secondary">→</Typography>
+                <Chip size="small" label="EXECUTED (deduction completed)" sx={{ opacity: 0.7 }} />
+              </Box>
+
+              {/* Execute Action */}
+              <Button
+                variant="contained"
+                color="success"
+                size="large"
+                startIcon={<PlayArrow />}
+                onClick={() => handleStartExecute(req)}
+                sx={{
+                  py: 1.3,
+                  px: 3.5,
+                  fontWeight: 800,
+                  fontSize: '0.95rem',
+                  borderRadius: 2.5,
+                  bgcolor: '#059669',
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.35)',
+                  '&:hover': { bgcolor: '#047857' }
+                }}
+              >
+                Execute Approved Withdrawal ({formatAmount(req.amount)}) →
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* Accountability Withdrawal Requests */}
       <Card sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.divider}`, mt: 4 }}>
@@ -808,7 +1067,7 @@ const WalletPage = () => {
                             variant="contained"
                             color="success"
                             startIcon={<PlayArrow />}
-                            onClick={() => handleExecuteApproved(req.id)}
+                            onClick={() => handleStartExecute(req)}
                             sx={{ textTransform: 'none', fontWeight: 700 }}
                           >
                             Execute
@@ -946,6 +1205,288 @@ const WalletPage = () => {
         onSuccess={handleWithdrawalSuccess}
         currentBalance={currentBalance}
       />
+
+      {/* Modal: Approved Withdrawal Execution Confirmation */}
+      <Dialog
+        open={Boolean(executingReq)}
+        onClose={() => !isExecuting && setExecutingReq(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {executingReq && (
+          <Box>
+            <DialogTitle sx={{ fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CheckCircle color="success" />
+              {executionStep === 'confirm' ? 'CONFIRM WITHDRAWAL' : 'ENTER SECURITY PIN'}
+            </DialogTitle>
+            <DialogContent dividers>
+              {executionStep === 'confirm' ? (
+                <>
+                  <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
+                    <strong>Nominee Decision: APPROVED.</strong> Please review the exact financial impact before proceeding to PIN authentication. ₹0 is deducted at this stage.
+                  </Alert>
+
+                  <Paper sx={{ p: 2.5, mb: 2, bgcolor: 'background.paper', borderRadius: 2.5, border: '1.5px solid', borderColor: 'divider' }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Nominee Approval:
+                      </Typography>
+                      <Chip label="APPROVED" size="small" color="success" sx={{ fontWeight: 800 }} />
+                    </Stack>
+
+                    <Divider sx={{ my: 1.5 }} />
+
+                    <Grid container spacing={2} sx={{ mb: 1.5 }}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                          AMOUNT APPROVED
+                        </Typography>
+                        <Typography variant="h6" fontWeight={900} color="success.main">
+                          {formatAmount(executingReq.amount)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                          CURRENT BALANCE
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800}>
+                          {formatAmount(currentBalance)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="error.main" fontWeight={700} display="block">
+                          AMOUNT THAT WILL BE DEDUCTED
+                        </Typography>
+                        <Typography variant="h6" fontWeight={900} color="error.main">
+                          {formatAmount(executingReq.amount)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" sx={{ color: '#047857', fontWeight: 700 }} display="block">
+                          BALANCE AFTER EXECUTION
+                        </Typography>
+                        <Typography variant="h6" fontWeight={900} sx={{ color: '#047857' }}>
+                          {formatAmount(Math.max(0, currentBalance - executingReq.amount))}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+
+                    <Divider sx={{ my: 1.5 }} />
+
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                        PURPOSE / REASON:
+                      </Typography>
+                      <Typography variant="body2" fontWeight={700}>
+                        {executingReq.reason}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                        NOMINEE NOTE:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.primary' }}>
+                        {executingReq.partnerNotes ? `"${executingReq.partnerNotes}"` : 'Approved by your accountability partner.'}
+                      </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                      <Chip
+                        size="small"
+                        color="warning"
+                        label={`Goal Impact: +${executingReq.estimatedDelayDays} days`}
+                        sx={{ fontWeight: 700 }}
+                      />
+                      <Chip
+                        size="small"
+                        color="error"
+                        label={`Runway Impact: -${executingReq.runwayImpactMonths.toFixed(1)} months`}
+                        sx={{ fontWeight: 700 }}
+                      />
+                    </Stack>
+                  </Paper>
+                </>
+              ) : (
+                <>
+                  <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 2 }}>
+                    <strong>Final Authorization Step:</strong> Enter your 4-digit security PIN to authorize atomic deduction of <strong>{formatAmount(executingReq.amount)}</strong> from your savings wallet.
+                  </Alert>
+
+                  <Paper sx={{ p: 2.5, mb: 3, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">Amount to be deducted:</Typography>
+                      <Typography variant="body2" fontWeight={800} color="error.main">{formatAmount(executingReq.amount)}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">Projected balance:</Typography>
+                      <Typography variant="body2" fontWeight={800} color="success.dark">{formatAmount(Math.max(0, currentBalance - executingReq.amount))}</Typography>
+                    </Stack>
+                  </Paper>
+
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                    Enter Security PIN
+                  </Typography>
+                  <TextField
+                    type="password"
+                    fullWidth
+                    autoFocus
+                    value={executePin}
+                    onChange={(e) => setExecutePin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="Enter 4-digit PIN (e.g. 1234)"
+                    helperText="Required to verify account ownership before atomic fund deduction (Demo PIN: 1234)"
+                    inputProps={{ maxLength: 4 }}
+                    sx={{ mb: 1 }}
+                  />
+                </>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ p: 2.5, justifyContent: 'space-between' }}>
+              {executionStep === 'confirm' ? (
+                <>
+                  <Button onClick={() => setExecutingReq(null)} disabled={isExecuting} color="inherit">
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => setExecutionStep('pin')}
+                    sx={{ textTransform: 'none', fontWeight: 800, px: 3, borderRadius: 2 }}
+                  >
+                    Confirm &amp; Enter PIN →
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => setExecutionStep('confirm')} disabled={isExecuting} color="inherit">
+                    ← Back
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    disabled={isExecuting || executePin.length < 4}
+                    onClick={handleConfirmExecution}
+                    startIcon={isExecuting ? <CircularProgress size={18} color="inherit" /> : <Lock />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      px: 3,
+                      borderRadius: 2,
+                      bgcolor: '#059669',
+                      '&:hover': { bgcolor: '#047857' }
+                    }}
+                  >
+                    {isExecuting ? 'Authenticating &amp; Executing...' : 'Authenticate &amp; Execute'}
+                  </Button>
+                </>
+              )}
+            </DialogActions>
+          </Box>
+        )}
+      </Dialog>
+
+      {/* 🌟 POST-EXECUTION RESULT DIALOG */}
+      <Dialog
+        open={Boolean(executedResult)}
+        onClose={() => setExecutedResult(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {executedResult && (
+          <Box>
+            <DialogTitle sx={{ fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1.5, color: 'success.main' }}>
+              <CheckCircle sx={{ fontSize: 32 }} />
+              WITHDRAWAL EXECUTED
+            </DialogTitle>
+            <DialogContent dividers>
+              <Alert severity="success" sx={{ mb: 2.5, borderRadius: 2 }}>
+                The withdrawal has been verified and processed atomically. The exact amount has been deducted from your wallet ledger.
+              </Alert>
+
+              <Paper sx={{ p: 2.5, borderRadius: 2.5, border: '1.5px solid', borderColor: '#10b981', bgcolor: alpha('#10b981', 0.04), mb: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="error.main" fontWeight={700} display="block">
+                      AMOUNT DEDUCTED
+                    </Typography>
+                    <Typography variant="h4" fontWeight={900} color="error.main">
+                      {formatAmount(executedResult.amount)}
+                    </Typography>
+                  </Grid>
+
+                  <Divider sx={{ my: 1, width: '100%' }} />
+
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      PREVIOUS BALANCE
+                    </Typography>
+                    <Typography variant="h6" fontWeight={800}>
+                      {formatAmount(executedResult.previousBalance)}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="caption" sx={{ color: '#047857', fontWeight: 700 }} display="block">
+                      NEW BALANCE
+                    </Typography>
+                    <Typography variant="h6" fontWeight={900} sx={{ color: '#047857' }}>
+                      {formatAmount(executedResult.newBalance)}
+                    </Typography>
+                  </Grid>
+
+                  <Divider sx={{ my: 1, width: '100%' }} />
+
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      PURPOSE
+                    </Typography>
+                    <Typography variant="body1" fontWeight={700}>
+                      {executedResult.reason}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      NOMINEE APPROVAL
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} color="success.main">
+                      Approved
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                      EXECUTION
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} color="primary.main">
+                      Confirmed by employee
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </DialogContent>
+            <DialogActions sx={{ p: 2.5, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+                onClick={() => handleShareReceipt(executedResult)}
+                sx={{ py: 1.2, fontWeight: 800, borderRadius: 2, flex: 1, borderColor: '#25D366', color: '#128C7E', '&:hover': { borderColor: '#128C7E', bgcolor: 'rgba(37, 211, 102, 0.08)' } }}
+              >
+                Share Receipt (WhatsApp)
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setExecutedResult(null)}
+                sx={{ py: 1.2, fontWeight: 800, borderRadius: 2, flex: 1 }}
+              >
+                View Updated Ledger →
+              </Button>
+            </DialogActions>
+          </Box>
+        )}
+      </Dialog>
     </Container>
   );
 };

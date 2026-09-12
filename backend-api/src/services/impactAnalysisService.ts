@@ -84,7 +84,7 @@ export class ImpactAnalysisService {
       delayReliable = true;
       estimatedDelayMonths = Math.round((parsedAmount / monthlySavings) * 10) / 10;
       estimatedDelayDays = Math.round((parsedAmount / monthlySavings) * 30);
-      delayExplanation = `At your current savings pace of $${monthlySavings.toLocaleString()}/month, this withdrawal may delay your savings goals by approximately ${estimatedDelayDays} days.`;
+      delayExplanation = `At your current savings pace of ₹${monthlySavings.toLocaleString('en-IN')}/month, this withdrawal may delay your savings goals by approximately ${estimatedDelayDays} days.`;
     }
 
     // Runway Calculation
@@ -166,7 +166,7 @@ export class ImpactAnalysisService {
     }
 
     logger.info(
-      `Pre-transaction impact computed for user ${userId}: amount=$${parsedAmount}, delay=${estimatedDelayDays}d, runwayAfter=${runwayAfterMonths}mo, requiresApproval=${ruleEval.requiresApproval}`
+      `Pre-transaction impact computed for user ${userId}: amount=₹${parsedAmount}, delay=${estimatedDelayDays}d, runwayAfter=${runwayAfterMonths}mo, requiresApproval=${ruleEval.requiresApproval}`
     );
 
     return {

@@ -21,6 +21,8 @@ import goalRoutes from "./routes/goalRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
 import accountabilityRoutes from "./routes/accountabilityRoutes.js";
 import withdrawalRoutes from "./routes/withdrawalRoutes.js";
+import employeeRoutes from "./routes/employeeRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 
 dotenv.config();
 
@@ -176,9 +178,13 @@ app.get("/metrics", async (req, res) => {
 // Routes
 // ----------------------------------
 app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/finance", financeRoutes);
+app.use("/api/finance", financeRoutes);
 app.use("/savings", savingsRoutes);
+app.use("/api/savings", savingsRoutes);
 app.use("/user", userRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/goals", goalRoutes);
@@ -189,6 +195,10 @@ app.use("/accountability", accountabilityRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/withdrawals", withdrawalRoutes);
 app.use("/api/wallet/withdrawals", withdrawalRoutes);
+app.use("/api/employee", employeeRoutes);
+app.use("/employee", employeeRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/chat", chatRoutes);
 
 // ----------------------------------
 // API Aliases (compat with frontend paths)

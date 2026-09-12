@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { WithdrawalService } from '../services/withdrawalService.js';
 import { WalletService } from '../services/walletService.js';
 import { AccountabilityService } from '../services/accountabilityService.js';
@@ -11,6 +11,7 @@ describe('FinFolio Phase 7: Conscious User Override', () => {
 
   beforeAll(async () => {
     DatabaseService.resetInMemoryState();
+    DatabaseService.setUseInMemory(true);
 
     // Deposit funds in user wallet
     await WalletService.deposit(userId, 3000, 'initial_deposit', 'Seed wallet for override tests');
@@ -31,6 +32,10 @@ describe('FinFolio Phase 7: Conscious User Override', () => {
       requiresApproval: true,
       maxInstantAmount: 0,
     });
+  });
+
+  afterAll(() => {
+    DatabaseService.setUseInMemory(false);
   });
 
   describe('Conscious Override Execution & Constraints', () => {

@@ -51,17 +51,17 @@ interface DebtItem {
 }
 
 const initialDebts: DebtItem[] = [
-  { id: 1, name: 'High-APR Credit Card 1', balance: 3500, rate: 22.9, minPayment: 110, type: 'Credit Card' },
-  { id: 2, name: 'Store Retail Card', balance: 1800, rate: 25.4, minPayment: 75, type: 'Credit Card' },
-  { id: 3, name: 'Personal Consolidation Loan', balance: 8000, rate: 12.5, minPayment: 220, type: 'Personal Loan' },
-  { id: 4, name: 'Auto Financing', balance: 14500, rate: 7.2, minPayment: 320, type: 'Auto Loan' },
+  { id: 1, name: 'HDFC Millennia Credit Card', balance: 45000, rate: 24.0, minPayment: 2500, type: 'Credit Card' },
+  { id: 2, name: 'Consumer Electronics EMI', balance: 25000, rate: 18.0, minPayment: 1500, type: 'Consumer Loan' },
+  { id: 3, name: 'Salary Advance / Personal Loan', balance: 120000, rate: 13.5, minPayment: 4200, type: 'Personal Loan' },
+  { id: 4, name: 'Vehicle / Two-Wheeler Financing', balance: 180000, rate: 8.9, minPayment: 5800, type: 'Auto Loan' },
 ];
 
 const DebtDashboard = () => {
   const theme = useTheme();
   const { currency, formatAmount } = useCurrency();
   const [payoffStrategy, setPayoffStrategy] = useState<'snowball' | 'avalanche'>('avalanche');
-  const [extraPaymentUSD, setExtraPaymentUSD] = useState<number>(150);
+  const [extraPaymentINR, setExtraPaymentINR] = useState<number>(5000);
 
   const debts = initialDebts;
   const totalDebt = debts.reduce((sum, debt) => sum + debt.balance, 0);
@@ -126,10 +126,10 @@ const DebtDashboard = () => {
     };
   };
 
-  const currentResult = simulateStrategy(payoffStrategy, extraPaymentUSD);
+  const currentResult = simulateStrategy(payoffStrategy, extraPaymentINR);
   const baselineResult = simulateStrategy(payoffStrategy, 0);
-  const avalancheResult = simulateStrategy('avalanche', extraPaymentUSD);
-  const snowballResult = simulateStrategy('snowball', extraPaymentUSD);
+  const avalancheResult = simulateStrategy('avalanche', extraPaymentINR);
+  const snowballResult = simulateStrategy('snowball', extraPaymentINR);
 
   const interestSavedByPrepayment = Math.max(0, baselineResult.totalInterestPaid - currentResult.totalInterestPaid);
   const monthsSavedByPrepayment = Math.max(0, baselineResult.months - currentResult.months);
@@ -253,23 +253,23 @@ const DebtDashboard = () => {
                 Extra Monthly Principal Prepayment:
               </Typography>
               <Chip
-                label={`+${formatAmount(extraPaymentUSD)} / month`}
+                label={`+${formatAmount(extraPaymentINR)} / month`}
                 color="primary"
                 size="small"
                 sx={{ fontWeight: 800 }}
               />
             </Box>
             <Slider
-              value={extraPaymentUSD}
+              value={extraPaymentINR}
               min={0}
-              max={600}
-              step={25}
-              onChange={(_: any, val: any) => setExtraPaymentUSD(val as number)}
+              max={25000}
+              step={1000}
+              onChange={(_: any, val: any) => setExtraPaymentINR(val as number)}
               marks={[
                 { value: 0, label: 'Min Only' },
-                { value: 200, label: `+${formatAmount(200)}` },
-                { value: 400, label: `+${formatAmount(400)}` },
-                { value: 600, label: `+${formatAmount(600)}` },
+                { value: 5000, label: `+${formatAmount(5000)}` },
+                { value: 15000, label: `+${formatAmount(15000)}` },
+                { value: 25000, label: `+${formatAmount(25000)}` },
               ]}
               sx={{ my: 1 }}
             />
@@ -328,7 +328,7 @@ const DebtDashboard = () => {
                 Prioritized Payoff Order ({payoffStrategy.toUpperCase()})
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Every extra dollar is directed to Debt #1 while keeping minimum payments active on all others.
+                Every extra rupee is directed to Debt #1 while keeping minimum payments active on all others.
               </Typography>
               <TableContainer component={Paper} elevation={0} sx={{ border: (t: any) => `1px solid ${t.palette.divider}`, borderRadius: 2 }}>
                 <Table>

@@ -145,8 +145,8 @@ export class FinancialGoalService {
       this.getGoals(userId),
     ]);
 
-    const monthlyIncome = userData?.monthlyIncome || 50000;
-    const monthlyExpenses = userData?.monthlyExpenses || 30000;
+    const monthlyIncome = userData?.monthlyIncome || 52000;
+    const monthlyExpenses = userData?.monthlyExpenses || 31000;
     const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
     const savingsRate = monthlyIncome > 0
       ? Math.round(((monthlySavings / monthlyIncome) * 100) * 10) / 10
@@ -174,30 +174,34 @@ export class FinancialGoalService {
   static async getGoals(userId: number): Promise<FinancialGoalWithCalculations[]> {
     let rawGoals: FinancialGoal[] = [];
 
-    try {
-      const result = await query(
-        `SELECT id, user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at
-         FROM financial_goals
-         WHERE user_id = $1
-         ORDER BY priority DESC, created_at ASC`,
-        [userId]
-      );
-
-      rawGoals = result.rows.map((row: any) => ({
-        id: row.id,
-        userId: row.user_id,
-        name: row.name,
-        targetAmount: parseFloat(row.target_amount) || 0,
-        currentAmount: parseFloat(row.current_amount) || 0,
-        targetDate: row.target_date ? new Date(row.target_date).toISOString().split('T')[0] : null,
-        category: row.category || 'general',
-        priority: (row.priority as GoalPriority) || 'medium',
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      }));
-    } catch (error) {
-      logger.warn(`Failed to fetch financial_goals from database for user ${userId}, using in-memory: ${error}`);
+    if (DatabaseService.isUseInMemory()) {
       rawGoals = inMemoryGoals.filter((g) => g.userId === userId);
+    } else {
+      try {
+        const result = await query(
+          `SELECT id, user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at
+           FROM financial_goals
+           WHERE user_id = $1
+           ORDER BY priority DESC, created_at ASC`,
+          [userId]
+        );
+
+        rawGoals = result.rows.map((row: any) => ({
+          id: row.id,
+          userId: row.user_id,
+          name: row.name,
+          targetAmount: parseFloat(row.target_amount) || 0,
+          currentAmount: parseFloat(row.current_amount) || 0,
+          targetDate: row.target_date ? new Date(row.target_date).toISOString().split('T')[0] : null,
+          category: row.category || 'general',
+          priority: (row.priority as GoalPriority) || 'medium',
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        }));
+      } catch (error) {
+        logger.warn(`Failed to fetch financial_goals from database for user ${userId}, using in-memory: ${error}`);
+        rawGoals = inMemoryGoals.filter((g) => g.userId === userId);
+      }
     }
 
     // If user has zero goals yet, initialize default demo goals for seamless onboarding
@@ -278,29 +282,7 @@ export class FinancialGoalService {
 
     let createdGoal: FinancialGoal;
 
-    try {
-      const result = await query(
-        `INSERT INTO financial_goals (user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-         RETURNING id, user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at`,
-        [userId, data.name, targetAmount, currentAmount, targetDate, category, priority]
-      );
-
-      const row = result.rows[0];
-      createdGoal = {
-        id: row.id,
-        userId: row.user_id,
-        name: row.name,
-        targetAmount: parseFloat(row.target_amount),
-        currentAmount: parseFloat(row.current_amount),
-        targetDate: row.target_date ? new Date(row.target_date).toISOString().split('T')[0] : null,
-        category: row.category,
-        priority: row.priority as GoalPriority,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      };
-    } catch (error) {
-      logger.warn(`Failed to insert into financial_goals DB, falling back to in-memory: ${error}`);
+    if (DatabaseService.isUseInMemory()) {
       createdGoal = {
         id: nextGoalId++,
         userId,
@@ -314,6 +296,44 @@ export class FinancialGoalService {
         updatedAt: new Date(),
       };
       inMemoryGoals.push(createdGoal);
+    } else {
+      try {
+        const result = await query(
+          `INSERT INTO financial_goals (user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+           RETURNING id, user_id, name, target_amount, current_amount, target_date, category, priority, created_at, updated_at`,
+          [userId, data.name, targetAmount, currentAmount, targetDate, category, priority]
+        );
+
+        const row = result.rows[0];
+        createdGoal = {
+          id: row.id,
+          userId: row.user_id,
+          name: row.name,
+          targetAmount: parseFloat(row.target_amount),
+          currentAmount: parseFloat(row.current_amount),
+          targetDate: row.target_date ? new Date(row.target_date).toISOString().split('T')[0] : null,
+          category: row.category,
+          priority: row.priority as GoalPriority,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        };
+      } catch (error) {
+        logger.warn(`Failed to insert into financial_goals DB, falling back to in-memory: ${error}`);
+        createdGoal = {
+          id: nextGoalId++,
+          userId,
+          name: data.name,
+          targetAmount,
+          currentAmount,
+          targetDate,
+          category,
+          priority,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        inMemoryGoals.push(createdGoal);
+      }
     }
 
     const userData = await DatabaseService.getUserFinancialData(userId);
@@ -340,6 +360,27 @@ export class FinancialGoalService {
       priority: GoalPriority;
     }>
   ): Promise<FinancialGoalWithCalculations | null> {
+    if (DatabaseService.isUseInMemory()) {
+      const goal = inMemoryGoals.find((g) => g.id === goalId && g.userId === userId);
+      if (!goal) return null;
+
+      if (data.name !== undefined) goal.name = data.name;
+      if (data.targetAmount !== undefined) goal.targetAmount = data.targetAmount;
+      if (data.currentAmount !== undefined) goal.currentAmount = data.currentAmount;
+      if (data.targetDate !== undefined) goal.targetDate = data.targetDate;
+      if (data.category !== undefined) goal.category = data.category;
+      if (data.priority !== undefined) goal.priority = data.priority;
+      goal.updatedAt = new Date();
+
+      const userData = await DatabaseService.getUserFinancialData(userId);
+      const userMonthlySavings = Math.max(0, (userData?.monthlyIncome || 50000) - (userData?.monthlyExpenses || 30000));
+
+      return {
+        ...goal,
+        calculations: this.calculateGoalDetails(goal, userMonthlySavings),
+      };
+    }
+
     try {
       const updates: string[] = [];
       const values: any[] = [];
@@ -463,6 +504,15 @@ export class FinancialGoalService {
    * Delete goal
    */
   static async deleteGoal(userId: number, goalId: number): Promise<boolean> {
+    if (DatabaseService.isUseInMemory()) {
+      const idx = inMemoryGoals.findIndex((g) => g.id === goalId && g.userId === userId);
+      if (idx !== -1) {
+        inMemoryGoals.splice(idx, 1);
+        return true;
+      }
+      return false;
+    }
+
     try {
       const result = await query(
         `DELETE FROM financial_goals WHERE id = $1 AND user_id = $2 RETURNING id`,

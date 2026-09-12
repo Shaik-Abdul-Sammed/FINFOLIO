@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Container, Typography, Grid, Card, CardContent, Button, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { Download, PictureAsPdf, TableChart, CalendarToday } from '@mui/icons-material';
+import { Download, PictureAsPdf, TableChart, CalendarToday, Share } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import Layout from '../components/Layout';
 
@@ -23,17 +23,79 @@ const Reports = () => {
     ];
 
     const handleExport = (format: 'pdf' | 'csv' | 'excel') => {
-        // Export functionality would be implemented here
-        console.log(`Exporting as ${format}`);
+        if (format === 'pdf') {
+            if (typeof window !== 'undefined') {
+                window.print();
+            }
+            return;
+        }
+
+        // Generate CSV content
+        const headers = ['Date', 'Category', 'Type', 'Amount (INR)'];
+        const rows = transactions.map((t) => [
+            t.date,
+            `"${t.category}"`,
+            t.type,
+            t.amount
+        ]);
+        const summaryRows = [
+            [],
+            ['6-Month Performance Summary', 'Value (INR)'],
+            ['Total Income', monthlyData.reduce((sum, m) => sum + m.income, 0)],
+            ['Total Expenses', monthlyData.reduce((sum, m) => sum + m.expenses, 0)],
+            ['Total Savings', monthlyData.reduce((sum, m) => sum + m.savings, 0)],
+        ];
+
+        const csvContent = 'data:text/csv;charset=utf-8,' +
+            [headers.join(','), ...rows.map((r) => r.join(',')), ...summaryRows.map((r) => r.join(','))].join('\n');
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `finfolio-financial-report-${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleShareWhatsApp = () => {
+        const totalIncome = monthlyData.reduce((sum, m) => sum + m.income, 0);
+        const totalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0);
+        const totalSavings = monthlyData.reduce((sum, m) => sum + m.savings, 0);
+        const savingsRate = ((totalSavings / totalIncome) * 100).toFixed(1);
+
+        const shareText = `📊 *FINFOLIO Financial & Cashflow Report*\n\n` +
+            `• Total Income (6M): ₹${totalIncome.toLocaleString('en-IN')}\n` +
+            `• Total Expenses (6M): ₹${totalExpenses.toLocaleString('en-IN')}\n` +
+            `• Net Savings (6M): ₹${totalSavings.toLocaleString('en-IN')}\n` +
+            `• Savings Rate: ${savingsRate}%\n` +
+            `• Avg Monthly Surplus: ₹${Math.round(totalSavings / monthlyData.length).toLocaleString('en-IN')}\n\n` +
+            `Platform: FINFOLIO — Indian Employee Resilience Engine`;
+
+        const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+        window.open(shareUrl, '_blank');
     };
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     📊 Reports & Analytics
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                        variant="contained"
+                        startIcon={<Share />}
+                        onClick={handleShareWhatsApp}
+                        sx={{
+                            bgcolor: '#25D366',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            '&:hover': { bgcolor: '#128C7E' },
+                        }}
+                    >
+                        Share (WhatsApp)
+                    </Button>
                     <Button
                         variant="outlined"
                         startIcon={<PictureAsPdf />}

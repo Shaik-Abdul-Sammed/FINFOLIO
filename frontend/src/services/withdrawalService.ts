@@ -157,9 +157,18 @@ export const withdrawalService = {
   },
 
   async executeApproved(
-    id: number
-  ): Promise<{ success: boolean; message: string; request: WithdrawalRequest; transaction: WalletTransaction }> {
-    const response = await apiClient.post(`/api/withdrawals/${id}/execute`);
+    id: number,
+    pin?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    request: WithdrawalRequest;
+    transaction: WalletTransaction;
+    amountDeducted?: number;
+    previousBalance?: number;
+    newBalance?: number;
+  }> {
+    const response = await apiClient.post(`/api/withdrawals/${id}/execute`, { pin });
     return response.data;
   },
 

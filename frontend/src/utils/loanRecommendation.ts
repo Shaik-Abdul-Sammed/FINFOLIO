@@ -43,7 +43,7 @@ export function getDecisionBadgeClass(decision: LoanDecision): string {
 }
 
 export function formatInr(amount: number): string {
-  return `Rs.${Math.round(amount).toLocaleString('en-IN')}`;
+  return `₹${Math.round(amount).toLocaleString('en-IN')}`;
 }
 
 export function calculateEmi(principal: number, annualRate: number, tenureMonths: number): number {
@@ -76,7 +76,7 @@ export function validateLoanRequest(input: LoanRecommendationRequest): Validatio
   if (input.annualIncome <= 0) errors.annualIncome = 'Annual income must be greater than 0.';
   if (input.monthlyExpenses < 0) errors.monthlyExpenses = 'Monthly expenses cannot be negative.';
   if ((input.existingEmi || 0) < 0) errors.existingEmi = 'Existing EMI cannot be negative.';
-  if (input.desiredLoanAmount < 10000) errors.desiredLoanAmount = 'Loan amount should be at least Rs.10,000.';
+  if (input.desiredLoanAmount < 10000) errors.desiredLoanAmount = 'Loan amount should be at least ₹10,000.';
   if (input.tenureMonths < 6 || input.tenureMonths > 360) errors.tenureMonths = 'Tenure must be between 6 and 360 months.';
   if (input.creditScore < 300 || input.creditScore > 900) errors.creditScore = 'Credit score must be between 300 and 900.';
   if (input.employmentYears < 0 || input.employmentYears > 45) errors.employmentYears = 'Employment years must be between 0 and 45.';

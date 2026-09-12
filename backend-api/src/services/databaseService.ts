@@ -173,8 +173,13 @@ export class DatabaseService {
    * Get user by email and pin for authentication
    */
   static async getUserByEmailAndPin(email: string, pin: string): Promise<{ id: number; email: string; name: string } | null> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const lookupEmail = (cleanEmail === 'employee@finfolio.com' || cleanEmail === 'employee' || cleanEmail === 'demo')
+      ? 'demo@finfolio.com'
+      : cleanEmail;
+
     if (useInMemory) {
-      const user = inMemoryUsers.find(u => u.email === email);
+      const user = inMemoryUsers.find(u => u.email === lookupEmail || (lookupEmail === 'demo@finfolio.com' && u.email === 'demo@finfolio.com'));
       if (user) {
         const isMatch = await this.comparePin(pin, user.password);
         if (isMatch) {
@@ -185,7 +190,7 @@ export class DatabaseService {
     }
 
     try {
-      const result = await query(`SELECT id, email, name, pin FROM users WHERE email = $1 LIMIT 1`, [email]);
+      const result = await query(`SELECT id, email, name, pin FROM users WHERE email = $1 LIMIT 1`, [lookupEmail]);
       if (result.rows.length > 0) {
         const row = result.rows[0];
         const isMatch = await this.comparePin(pin, row.pin);
@@ -743,10 +748,30 @@ export class DatabaseService {
     useInMemory = val;
   }
 
+  static isUseInMemory(): boolean {
+    return useInMemory;
+  }
+
   /**
    * Get or initialize a user's wallet
    */
-  static async getOrCreateWallet(userId: number, initialBalance: number = 0, currency: string = 'USD'): Promise<Wallet> {
+  static async getOrCreateWallet(userId: number, initialBalance: number = 0, currency: string = 'INR'): Promise<Wallet> {
+    if (useInMemory) {
+      let wallet = inMemoryWallets.find(w => w.userId === userId);
+      if (!wallet) {
+        wallet = {
+          id: nextWalletId++,
+          userId,
+          balance: initialBalance,
+          currency,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        inMemoryWallets.push(wallet);
+      }
+      return wallet;
+    }
+
     try {
       const selectResult = await query(
         `SELECT id, user_id, balance, currency, created_at, updated_at FROM wallets WHERE user_id = $1 LIMIT 1`,
@@ -805,6 +830,11 @@ export class DatabaseService {
    * Get wallet for user
    */
   static async getWallet(userId: number): Promise<Wallet | null> {
+    if (useInMemory) {
+      const wallet = inMemoryWallets.find(w => w.userId === userId);
+      return wallet || null;
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, balance, currency, created_at, updated_at FROM wallets WHERE user_id = $1 LIMIT 1`,
@@ -835,6 +865,25 @@ export class DatabaseService {
   static async updateWalletBalance(userId: number, newBalance: number): Promise<Wallet> {
     if (newBalance < 0) {
       throw new Error(`Wallet balance cannot be negative: ${newBalance}`);
+    }
+
+    if (useInMemory) {
+      let wallet = inMemoryWallets.find(w => w.userId === userId);
+      if (!wallet) {
+        wallet = {
+          id: nextWalletId++,
+          userId,
+          balance: newBalance,
+          currency: 'INR',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        inMemoryWallets.push(wallet);
+      } else {
+        wallet.balance = newBalance;
+        wallet.updatedAt = new Date();
+      }
+      return wallet;
     }
 
     try {
@@ -876,6 +925,21 @@ export class DatabaseService {
   static async atomicDeductWalletBalance(userId: number, amount: number): Promise<Wallet> {
     if (amount <= 0) {
       throw new Error(`Deduction amount must be positive: ${amount}`);
+    }
+
+    if (useInMemory) {
+      const wallet = inMemoryWallets.find(w => w.userId === userId);
+      if (!wallet) {
+        throw new Error(`Wallet for user ${userId} not found`);
+      }
+      if (wallet.balance < amount) {
+        throw new Error(
+          `Insufficient funds: current wallet balance is ${wallet.balance}, requested ${amount}`
+        );
+      }
+      wallet.balance = Math.round((wallet.balance - amount) * 100) / 100;
+      wallet.updatedAt = new Date();
+      return wallet;
     }
 
     try {
@@ -935,6 +999,24 @@ export class DatabaseService {
       throw new Error(`Deposit amount must be positive: ${amount}`);
     }
 
+    if (useInMemory) {
+      let wallet = inMemoryWallets.find(w => w.userId === userId);
+      if (!wallet) {
+        wallet = {
+          id: nextWalletId++,
+          userId,
+          balance: 0,
+          currency: 'INR',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        inMemoryWallets.push(wallet);
+      }
+      wallet.balance = Math.round((wallet.balance + amount) * 100) / 100;
+      wallet.updatedAt = new Date();
+      return wallet;
+    }
+
     try {
       const result = await query(
         `INSERT INTO wallets (user_id, balance, currency, created_at, updated_at)
@@ -983,6 +1065,23 @@ export class DatabaseService {
   static async createWalletTransaction(
     tx: Omit<WalletTransaction, 'id' | 'createdAt'>
   ): Promise<WalletTransaction> {
+    if (useInMemory) {
+      const newTx: WalletTransaction = {
+        id: nextTxId++,
+        walletId: tx.walletId,
+        userId: tx.userId,
+        amount: tx.amount,
+        type: tx.type,
+        status: tx.status,
+        category: tx.category,
+        ...(tx.reason !== undefined && { reason: tx.reason }),
+        ...(tx.referenceId !== undefined && { referenceId: tx.referenceId }),
+        createdAt: new Date(),
+      };
+      inMemoryTransactions.push(newTx);
+      return newTx;
+    }
+
     try {
       const result = await query(
         `INSERT INTO wallet_transactions (wallet_id, user_id, amount, type, status, category, reason, reference_id, created_at)
@@ -1036,6 +1135,13 @@ export class DatabaseService {
    * Get wallet transaction history
    */
   static async getWalletTransactions(userId: number, limit: number = 50): Promise<WalletTransaction[]> {
+    if (useInMemory) {
+      return inMemoryTransactions
+        .filter(t => t.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit);
+    }
+
     try {
       const result = await query(
         `SELECT id, wallet_id, user_id, amount, type, status, category, reason, reference_id, created_at
@@ -1073,6 +1179,21 @@ export class DatabaseService {
   static async createAccountabilityPartner(
     partner: Omit<AccountabilityPartner, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<AccountabilityPartner> {
+    if (useInMemory) {
+      const newPartner: AccountabilityPartner = {
+        id: nextPartnerId++,
+        userId: partner.userId,
+        name: partner.name,
+        email: partner.email,
+        relationship: partner.relationship,
+        status: partner.status,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      inMemoryPartners.push(newPartner);
+      return newPartner;
+    }
+
     try {
       const result = await query(
         `INSERT INTO accountability_partners (user_id, name, email, relationship, status, created_at, updated_at)
@@ -1113,6 +1234,10 @@ export class DatabaseService {
    * Get active accountability partners for user
    */
   static async getAccountabilityPartners(userId: number): Promise<AccountabilityPartner[]> {
+    if (useInMemory) {
+      return inMemoryPartners.filter(p => p.userId === userId && p.status !== 'inactive');
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, name, email, relationship, status, created_at, updated_at
@@ -1143,6 +1268,22 @@ export class DatabaseService {
   static async createCommitmentRule(
     rule: Omit<CommitmentRule, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<CommitmentRule> {
+    if (useInMemory) {
+      const newRule: CommitmentRule = {
+        id: nextRuleId++,
+        userId: rule.userId,
+        category: rule.category,
+        level: rule.level,
+        requiresApproval: rule.requiresApproval,
+        maxInstantAmount: rule.maxInstantAmount,
+        ...(rule.partnerId !== undefined && { partnerId: rule.partnerId }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      inMemoryRules.push(newRule);
+      return newRule;
+    }
+
     try {
       const result = await query(
         `INSERT INTO commitment_rules (user_id, category, level, requires_approval, max_instant_amount, partner_id, created_at, updated_at)
@@ -1192,6 +1333,10 @@ export class DatabaseService {
    * Get commitment rules for user
    */
   static async getCommitmentRules(userId: number): Promise<CommitmentRule[]> {
+    if (useInMemory) {
+      return inMemoryRules.filter(r => r.userId === userId);
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, category, level, requires_approval, max_instant_amount, partner_id, created_at, updated_at
@@ -1223,6 +1368,29 @@ export class DatabaseService {
   static async createWithdrawalRequest(
     req: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<WithdrawalRequest> {
+    if (useInMemory) {
+      const newReq: WithdrawalRequest = {
+        id: nextWithdrawalId++,
+        userId: req.userId,
+        walletId: req.walletId,
+        ...(req.goalId !== undefined && { goalId: req.goalId }),
+        amount: req.amount,
+        category: req.category,
+        reason: req.reason,
+        status: req.status,
+        estimatedDelayDays: req.estimatedDelayDays,
+        runwayImpactMonths: req.runwayImpactMonths,
+        isEmergency: req.isEmergency,
+        isOverride: req.isOverride,
+        ...(req.partnerNotes !== undefined && { partnerNotes: req.partnerNotes }),
+        ...(req.decisionDate !== undefined && { decisionDate: req.decisionDate }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      inMemoryWithdrawals.push(newReq);
+      return newReq;
+    }
+
     try {
       const result = await query(
         `INSERT INTO withdrawal_requests (
@@ -1297,6 +1465,12 @@ export class DatabaseService {
    * Get withdrawal requests for user
    */
   static async getWithdrawalRequests(userId: number): Promise<WithdrawalRequest[]> {
+    if (useInMemory) {
+      return inMemoryWithdrawals
+        .filter(w => w.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
     try {
       const result = await query(
         `SELECT * FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC`,
@@ -1333,6 +1507,10 @@ export class DatabaseService {
    * Get accountability partner by ID
    */
   static async getAccountabilityPartnerById(partnerId: number): Promise<AccountabilityPartner | null> {
+    if (useInMemory) {
+      return inMemoryPartners.find(p => p.id === partnerId) || null;
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, name, email, relationship, status, created_at, updated_at
@@ -1362,6 +1540,10 @@ export class DatabaseService {
    * Get accountability partners by partner email (for partner portal lookup)
    */
   static async getAccountabilityPartnersByEmail(email: string): Promise<AccountabilityPartner[]> {
+    if (useInMemory) {
+      return inMemoryPartners.filter(p => p.email.toLowerCase() === email.toLowerCase() && p.status !== 'inactive');
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, name, email, relationship, status, created_at, updated_at
@@ -1392,6 +1574,16 @@ export class DatabaseService {
     partnerId: number,
     status: 'pending' | 'active' | 'inactive'
   ): Promise<AccountabilityPartner | null> {
+    if (useInMemory) {
+      const partner = inMemoryPartners.find(p => p.id === partnerId);
+      if (partner) {
+        partner.status = status;
+        partner.updatedAt = new Date();
+        return partner;
+      }
+      return null;
+    }
+
     try {
       const result = await query(
         `UPDATE accountability_partners
@@ -1428,6 +1620,15 @@ export class DatabaseService {
    * Delete or permanently deactivate an accountability partner
    */
   static async deleteAccountabilityPartner(partnerId: number, userId: number): Promise<boolean> {
+    if (useInMemory) {
+      const idx = inMemoryPartners.findIndex(p => p.id === partnerId && p.userId === userId);
+      if (idx !== -1) {
+        inMemoryPartners.splice(idx, 1);
+        return true;
+      }
+      return false;
+    }
+
     try {
       const result = await query(
         `DELETE FROM accountability_partners WHERE id = $1 AND user_id = $2`,
@@ -1449,6 +1650,10 @@ export class DatabaseService {
    * Get commitment rule by ID
    */
   static async getCommitmentRuleById(ruleId: number): Promise<CommitmentRule | null> {
+    if (useInMemory) {
+      return inMemoryRules.find(r => r.id === ruleId) || null;
+    }
+
     try {
       const result = await query(
         `SELECT id, user_id, category, level, requires_approval, max_instant_amount, partner_id, created_at, updated_at
@@ -1483,6 +1688,20 @@ export class DatabaseService {
     userId: number,
     updates: Partial<Omit<CommitmentRule, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
   ): Promise<CommitmentRule | null> {
+    if (useInMemory) {
+      const rule = inMemoryRules.find(r => r.id === ruleId && r.userId === userId);
+      if (rule) {
+        if (updates.category !== undefined) rule.category = updates.category;
+        if (updates.level !== undefined) rule.level = updates.level;
+        if (updates.requiresApproval !== undefined) rule.requiresApproval = updates.requiresApproval;
+        if (updates.maxInstantAmount !== undefined) rule.maxInstantAmount = updates.maxInstantAmount;
+        if (updates.partnerId !== undefined) rule.partnerId = updates.partnerId;
+        rule.updatedAt = new Date();
+        return rule;
+      }
+      return null;
+    }
+
     try {
       const current = await this.getCommitmentRuleById(ruleId);
       if (!current || current.userId !== userId) return null;
@@ -1533,6 +1752,15 @@ export class DatabaseService {
    * Delete commitment rule
    */
   static async deleteCommitmentRule(ruleId: number, userId: number): Promise<boolean> {
+    if (useInMemory) {
+      const idx = inMemoryRules.findIndex(r => r.id === ruleId && r.userId === userId);
+      if (idx !== -1) {
+        inMemoryRules.splice(idx, 1);
+        return true;
+      }
+      return false;
+    }
+
     try {
       const result = await query(
         `DELETE FROM commitment_rules WHERE id = $1 AND user_id = $2`,
@@ -1554,6 +1782,10 @@ export class DatabaseService {
    * Get withdrawal request by ID
    */
   static async getWithdrawalRequestById(requestId: number): Promise<WithdrawalRequest | null> {
+    if (useInMemory) {
+      return inMemoryWithdrawals.find(w => w.id === requestId) || null;
+    }
+
     try {
       const result = await query(
         `SELECT * FROM withdrawal_requests WHERE id = $1`,
@@ -1594,6 +1826,18 @@ export class DatabaseService {
     partnerNotes?: string,
     decisionDate?: Date
   ): Promise<WithdrawalRequest | null> {
+    if (useInMemory) {
+      const req = inMemoryWithdrawals.find(w => w.id === requestId);
+      if (req) {
+        req.status = status;
+        if (partnerNotes !== undefined) req.partnerNotes = partnerNotes;
+        if (decisionDate !== undefined) req.decisionDate = decisionDate;
+        req.updatedAt = new Date();
+        return req;
+      }
+      return null;
+    }
+
     try {
       const result = await query(
         `UPDATE withdrawal_requests
@@ -1644,6 +1888,18 @@ export class DatabaseService {
     requestId: number,
     userId: number
   ): Promise<WithdrawalRequest | null> {
+    if (useInMemory) {
+      const req = inMemoryWithdrawals.find(
+        w => w.id === requestId && w.userId === userId && w.status === 'approved'
+      );
+      if (req) {
+        req.status = 'executed';
+        req.updatedAt = new Date();
+        return req;
+      }
+      return null;
+    }
+
     try {
       const result = await query(
         `UPDATE withdrawal_requests
@@ -1698,12 +1954,22 @@ export class DatabaseService {
    */
   static async getPendingRequestsForPartnerEmail(partnerEmail: string): Promise<WithdrawalRequest[]> {
     const trimmedEmail = partnerEmail.trim().toLowerCase();
+    if (useInMemory) {
+      const activePartners = inMemoryPartners.filter(
+        p => p.email.trim().toLowerCase() === trimmedEmail && p.status === 'active'
+      );
+      const activeUserIds = new Set(activePartners.map(p => p.userId));
+
+      return inMemoryWithdrawals
+        .filter(w => w.status === 'pending' && activeUserIds.has(w.userId))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
     try {
       const result = await query(
-        `SELECT wr.*
+        `SELECT DISTINCT wr.*
          FROM withdrawal_requests wr
-         JOIN commitment_rules cr ON wr.user_id = cr.user_id AND LOWER(TRIM(wr.category)) = LOWER(TRIM(cr.category))
-         JOIN accountability_partners ap ON cr.partner_id = ap.id
+         JOIN accountability_partners ap ON wr.user_id = ap.user_id
          WHERE LOWER(TRIM(ap.email)) = LOWER($1) AND ap.status = 'active' AND wr.status = 'pending'
          ORDER BY wr.created_at DESC`,
         [trimmedEmail]
@@ -1764,6 +2030,23 @@ export class DatabaseService {
     message: string;
     details?: Record<string, any> | undefined;
   }): Promise<PartnerNotification> {
+    if (useInMemory) {
+      const newNotif: PartnerNotification = {
+        id: nextNotificationId++,
+        userId: data.userId,
+        ...(data.partnerId !== undefined && { partnerId: data.partnerId }),
+        partnerEmail: data.partnerEmail,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        ...(data.details !== undefined && { details: data.details }),
+        read: false,
+        createdAt: new Date(),
+      };
+      inMemoryNotifications.push(newNotif);
+      return newNotif;
+    }
+
     try {
       const result = await query(
         `INSERT INTO partner_notifications (user_id, partner_id, partner_email, type, title, message, details, read, created_at)
@@ -1819,6 +2102,16 @@ export class DatabaseService {
     userId?: number,
     partnerEmail?: string
   ): Promise<PartnerNotification[]> {
+    if (useInMemory) {
+      return inMemoryNotifications
+        .filter(n => {
+          if (userId !== undefined && n.userId !== userId) return false;
+          if (partnerEmail && n.partnerEmail.toLowerCase() !== partnerEmail.toLowerCase()) return false;
+          return true;
+        })
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
     try {
       let queryText = `SELECT * FROM partner_notifications WHERE 1=1`;
       const params: any[] = [];
@@ -1864,6 +2157,15 @@ export class DatabaseService {
    * Mark partner notification as read
    */
   static async markPartnerNotificationRead(notificationId: number): Promise<boolean> {
+    if (useInMemory) {
+      const notif = inMemoryNotifications.find(n => n.id === notificationId);
+      if (notif) {
+        notif.read = true;
+        return true;
+      }
+      return false;
+    }
+
     try {
       const result = await query(
         `UPDATE partner_notifications SET read = true WHERE id = $1`,
@@ -1885,6 +2187,13 @@ export class DatabaseService {
    * Get emergency withdrawals for user
    */
   static async getEmergencyWithdrawals(userId: number, days?: number): Promise<WithdrawalRequest[]> {
+    if (useInMemory) {
+      const cutoff = days !== undefined ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
+      return inMemoryWithdrawals
+        .filter(w => w.userId === userId && w.isEmergency && (!cutoff || w.createdAt >= cutoff))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
     try {
       let queryText = `SELECT * FROM withdrawal_requests WHERE user_id = $1 AND is_emergency = true`;
       const params: any[] = [userId];

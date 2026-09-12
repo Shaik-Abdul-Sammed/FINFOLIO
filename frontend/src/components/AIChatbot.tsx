@@ -16,6 +16,8 @@ import {
   Divider,
   Alert,
   Paper,
+  Button,
+  CircularProgress,
   alpha
 } from '@mui/material';
 import {
@@ -79,33 +81,55 @@ const AIChatbot: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState<UserFinancialProfile>(DEFAULT_PROFILE);
+  const [employeeContext, setEmployeeContext] = useState<any>(null);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [lastMessage, setLastMessage] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "👋 Namaste! I'm your FINFOLIO AI Financial Copilot.\n\nI provide deterministic, mathematically grounded advice for your finances in Indian Rupee (₹). Ask me anything about survival runway, job loss defense, medical emergency planning, debt payoffs, or major purchase affordability.",
+      text: "👋 Namaste! I'm your FINFOLIO Employee Financial Copilot.\n\nI have full access to your employee profile (EMP-RKVT-1001), employer outlook, career risk, skills gap, transition roles, and resilient loan limits in Indian Rupee (₹).\n\nAsk me anything about job security, corporate risk, loans, survival runway, skills, or withdrawals.",
       sender: 'bot',
       timestamp: new Date(),
       suggestions: [
+        '🧮 Calculate EMI for ₹15 Lakh loan at 8.5% for 5 years',
+        '📈 Calculate 15% salary hike impact',
+        '🛡️ Calculate emergency fund for 9 months',
+        'What should I do if my company becomes risky?',
+        'Can I afford a ₹20 lakh home loan?',
+        'What happens if I lose my job?',
+        'What skills should I learn?',
         'How many days can I survive without a salary?',
-        'Can I afford to leave my current job?',
-        'What happens if I lose my job tomorrow?',
-        'How much should I save every month?',
-        'Am I spending too much on entertainment?',
-        'How much emergency fund should I maintain?',
-        'Can I afford a ₹75,000 purchase?',
-        'Medical emergency plan for ₹5 Lakhs',
       ],
     },
   ]);
 
-  // Fetch real profile from backend on mount
+  // Fetch real employee profile & financial context from backend on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get('/user/profile');
-        if (res.data) {
-          const d = res.data;
+        const [userRes, empRes] = await Promise.allSettled([
+          api.get('/user/profile'),
+          api.get('/employee/full-context')
+        ]);
+
+        if (empRes.status === 'fulfilled' && empRes.value.data?.data) {
+          const ec = empRes.value.data.data;
+          setEmployeeContext(ec);
+          setProfile((prev) => ({
+            ...prev,
+            monthlyIncome: Number(ec.employee?.monthlyTakeHome) || 65000,
+            monthlyExpenses: Number(ec.incomeResilience?.essentialExpenses) || 35000,
+            emergencyFund: Number(ec.incomeResilience?.emergencySavings) || 210000,
+            debt: Number(ec.loanAffordability?.existingEmi ? ec.loanAffordability.existingEmi * 36 : 288000),
+            hasCustomProfile: true,
+          }));
+          return;
+        }
+
+        if (userRes.status === 'fulfilled' && userRes.value.data) {
+          const d = userRes.value.data;
           setProfile((prev) => ({
             ...prev,
             monthlyIncome: Number(d.monthlyIncome) || prev.monthlyIncome,
@@ -232,6 +256,425 @@ const AIChatbot: React.FC = () => {
     const freezeCoverageMonths = Math.round((emergencyFund / freezeExpenses) * 10) / 10;
     const freezeSurvivalDays = Math.round(freezeCoverageMonths * 30.417);
     const dti = monthlyIncome > 0 ? Math.round((debt * 0.03 / monthlyIncome) * 100) : 0; // Est. 3% monthly debt obligation
+
+    // === CROSS-DOMAIN 1: Company Risky + Loan Question ===
+    if ((lower.includes('company') && (lower.includes('risk') || lower.includes('unstable'))) && (lower.includes('loan') || lower.includes('20 lakh') || lower.includes('emi') || lower.includes('borrow'))) {
+      return {
+        text: `⚠️ **CRITICAL CROSS-DOMAIN ADVISORY: DO NOT TAKE A ₹20 LAKH LOAN**\n\n` +
+          `• **Employer Outlook:** Example Technologies Pvt. Ltd. has **MODERATE RISK** (Stability: 68/100, Revenue growth decelerating from 28% to 8% YoY, EBITDA margins contracted -3.4%, net tech headcount shrinking -4.2%).\n` +
+          `• **Role Stability:** Software Engineer stability score is 74/100, but career resilience is currently **61/100** due to cloud/AI skill gaps.\n` +
+          `• **Current Cash Flow:** Monthly take-home is ₹65,000; existing EMI is ₹8,000; essential living burn is ₹35,000.\n` +
+          `• **Loan Impact:** A ₹20 Lakh loan adds ~₹20,000/month in EMI, spiking your fixed debt to ₹28,000/mo (DTI: 43.1%).\n` +
+          `• **Runway Collapse:** Under an employer restructuring or salary freeze, this debt burden would collapse your emergency runway from **6.0 months down to 2.8 months**, creating acute default insolvency risk.\n\n` +
+          `✅ **FinFolio Strategic Advice:**\n` +
+          `1. Postpone large discretionary borrowings until company stability recovers.\n` +
+          `2. If urgent, cap any new loan EMI to maximum **₹10,000/mo** (Principal: ₹6.0L–₹8.5L).\n` +
+          `3. Complete Phase 1 AWS Cloud upskilling to raise career resilience from 61 to 84.`,
+        suggestions: [
+          'What skills should I learn?',
+          'What job can I switch to?',
+          'How many days can I survive without a salary?',
+        ],
+        isAlert: true,
+        alertType: 'error'
+      };
+    }
+
+    // === CROSS-DOMAIN 2: Job Loss Next Month - What Should I Do? ===
+    if ((lower.includes('lose my job') || lower.includes('job loss') || lower.includes('laid off')) && (lower.includes('next month') || lower.includes('what should i do'))) {
+      return {
+        text: `🚨 **LAYOFF CONTINGENCY & ACTION PROTOCOL**\n\n` +
+          `If you lose your job next month, here is your connected financial and career resilience roadmap:\n\n` +
+          `**1. Financial Survival & Runway:**\n` +
+          `• **Liquid Emergency Reserve:** ₹2,10,000 (Status: EXCELLENT)\n` +
+          `• **Standard Survival Runway:** **6.0 Months (180 Days)** at normal ₹35,000/mo burn.\n` +
+          `• **Emergency Freeze Runway:** **7.8 Months (235 Days)** by eliminating discretionary spends.\n` +
+          `• **Fixed Obligations:** ₹8,000 existing EMI must be serviced to protect CIBIL score.\n\n` +
+          `**2. Career Transition & Re-employment:**\n` +
+          `• **Immediate Role Match:** Full Stack Developer (**91% Match**, ₹12L–₹16L LPA) leverages your React + Node.js background.\n` +
+          `• **Alternative Role:** Backend Engineer (**86% Match**, ₹13L–₹17L LPA).\n` +
+          `• **Top Priority Skill:** Complete AWS Cloud Solutions training in Month 1 to close your primary gap and raise resilience from 61 to 84.\n\n` +
+          `**3. Immediate Action Checklist:**\n` +
+          `• Activate Freeze Budget on Day 1.\n` +
+          `• Maintain health insurance cover (protects against medical drain).\n` +
+          `• Deploy your transition-ready CV for Full Stack Developer roles in Bengaluru.`,
+        suggestions: [
+          'What jobs are suitable for me?',
+          'What skills should I learn?',
+          'How many days can I survive without a salary?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // === CANONICAL 1: What is my financial health? ===
+    if (lower.includes('what is my financial health') || lower.includes('my financial health') || lower.includes('financial health summary')) {
+      return {
+        text: `📊 **FINFOLIO FINANCIAL HEALTH REPORT (EMP-RKVT-1001)**\n\n` +
+          `• **Monthly Take-Home Income:** ₹65,000\n` +
+          `• **Essential Monthly Burn:** ₹35,000 (Living expenses)\n` +
+          `• **Existing Debt EMI:** ₹8,000 (DTI: 12.3% — Healthy)\n` +
+          `• **Liquid Wallet Balance:** ₹1,00,000 INR (Protected threshold: ₹20,000)\n` +
+          `• **Emergency Reserve:** ₹2,10,000 (**6.0 Months Runway / 180 Days**)\n` +
+          `• **Emergency Status:** **EXCELLENT**\n` +
+          `• **Job Stability Score:** 74/100 (Role: Software Engineer)\n` +
+          `• **Company Risk:** MODERATE (Example Technologies Pvt. Ltd., Stability: 68/100)\n` +
+          `• **Career Resilience Score:** 61/100 (Potential: 84/100 with AWS Cloud & AI skills)\n\n` +
+          `💡 **Overall Assessment:** Your personal balance sheet has strong liquidity and a robust 6-month buffer, but your income source carries moderate employer risk. Prioritize upskilling over taking new debt.`,
+        suggestions: [
+          'Why is my career risk moderate?',
+          'Can I afford a ₹20 lakh home loan?',
+          'What skills should I learn?',
+        ],
+        isAlert: false
+      };
+    }
+
+    // === CANONICAL 2: Why is my score low? ===
+    if (lower.includes('why is my score low') || lower.includes('score low') || lower.includes('why is score')) {
+      return {
+        text: `🔍 **RESILIENCE SCORE BREAKDOWN: 61/100**\n\n` +
+          `Your **Career Resilience Score is 61/100** (compared to your 74/100 role stability) because of two critical factors:\n\n` +
+          `1. **Employer Business Headwinds:** Example Technologies is facing decelerating growth (8% vs 28%) and EBITDA compression (-3.4%), reducing internal advancement security.\n` +
+          `2. **Skill Obsolescence Exposure:** While your core React and Node.js skills are strong (Level 4/5), modern engineering demand has shifted heavily toward Cloud Architecture (AWS gap: 2/5) and AI/LLM integration (gap: 1/5).\n\n` +
+          `📈 **How to Reach 84/100 (+23 Points):**\n` +
+          `Completing Phase 1 (AWS Solutions Architect) and Phase 2 (LangChain/RAG) raises your market resilience to **84/100**, opening transition paths to ₹16L–₹20L LPA roles.`,
+        suggestions: [
+          'Which skill gives me the biggest improvement?',
+          'What skills should I learn?',
+          'What job can I switch to?',
+        ]
+      };
+    }
+
+    // === CANONICAL 3: How risky is my company? ===
+    if (lower.includes('how risky is my company') || lower.includes('how risky') || lower.includes('company stability')) {
+      return {
+        text: `🏢 **EMPLOYER INTELLIGENCE: EXAMPLE TECHNOLOGIES PVT. LTD.**\n\n` +
+          `• **Corporate Risk Level:** **MODERATE**\n` +
+          `• **Stability Score:** **68/100**\n` +
+          `• **Financial Health Score:** **72/100**\n` +
+          `• **Revenue Growth Trend:** Decelerating (8% YoY vs 28% prior year)\n` +
+          `• **Profitability:** Margin contraction (EBITDA margin -3.4%)\n` +
+          `• **Headcount Growth:** -4.2% (Selective hiring / net contraction)\n` +
+          `• **Attrition Rate:** 18.5%\n` +
+          `• **Debt Exposure:** Low leverage (Debt/Equity: 0.28)\n\n` +
+          `💡 **Interpretation:** The company is fundamentally solvent with low debt, but growth deceleration and margin pressure signal potential restructuring in non-core units. Maintain your 6-month buffer and do not add high fixed EMIs.`,
+        suggestions: [
+          'What should I do if my company becomes risky?',
+          'Can I afford a ₹20 lakh home loan?',
+          'What jobs are suitable for me?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // === CANONICAL 4: Should I continue my current job? ===
+    if (lower.includes('should i continue my current job') || lower.includes('should i continue in my job') || lower.includes('continue my current job')) {
+      return {
+        text: `👔 **JOB CONTINUITY EVALUATION: SOFTWARE ENGINEER**\n\n` +
+          `• **Role Stability Score:** **74/100** (Viable)\n` +
+          `• **Monthly Take-Home:** ₹65,000\n` +
+          `• **Employer Risk:** MODERATE (Example Technologies Pvt. Ltd.)\n\n` +
+          `✅ **Verdict: CONTINUE YOUR JOB, BUT ACTIVATE PREPARATION**\n\n` +
+          `Your role is not under immediate threat, and resigning precipitously would surrender your steady cash flow. However, because company hiring is contracting (-4.2%):` +
+          `\n• Do not assume automatic annual raises.` +
+          `\n• Spend 5–8 hours/week completing AWS Cloud certification.` +
+          `\n• Keep your Career Transition profile (Full Stack 91% match) ready for quick deployment if restructuring expands.`,
+        suggestions: [
+          'What skills should I learn?',
+          'What jobs are suitable for me?',
+          'Can I afford to leave my current job?',
+        ]
+      };
+    }
+
+    // === CANONICAL 9: What happens if my salary falls 20%? ===
+    if (lower.includes('salary falls 20%') || lower.includes('salary drops 20%') || lower.includes('income drops 20%') || lower.includes('salary cut')) {
+      const reducedSalary = Math.round(monthlyIncome * 0.80);
+      const totalObligations = monthlyExpenses + 8000;
+      const remainingSurplus = reducedSalary - totalObligations;
+      return {
+        text: `📉 **STRESS TEST: 20% SALARY REDUCTION SIMULATION**\n\n` +
+          `• **Current Take-Home:** ₹${monthlyIncome.toLocaleString('en-IN')}\n` +
+          `• **Reduced Take-Home (-20%):** **₹${reducedSalary.toLocaleString('en-IN')} / mo**\n` +
+          `• **Essential Living Burn:** ₹${monthlyExpenses.toLocaleString('en-IN')} / mo\n` +
+          `• **Existing EMI Obligation:** ₹8,000 / mo\n` +
+          `• **Total Non-Negotiable Expenses:** ₹${totalObligations.toLocaleString('en-IN')} / mo\n` +
+          `• **Monthly Net Cash Surplus:** **₹${remainingSurplus.toLocaleString('en-IN')} / mo**\n\n` +
+          `🛡️ **Resilience Impact:**\n` +
+          `Because your monthly obligations (₹${totalObligations.toLocaleString('en-IN')}) remain below your reduced income (₹${reducedSalary.toLocaleString('en-IN')}), **you will NOT need to deplete your emergency fund**! Your 6.0-month runway remains intact.\n\n` +
+          `⚠️ **Crucial Warning:** If you had taken an additional ₹20,000 EMI from a ₹20 Lakh loan, total obligations would be ₹63,000, creating an immediate **₹11,000/month cash deficit** that would drain your emergency fund in 19 months!`,
+        suggestions: [
+          'Can I afford a ₹20 lakh home loan?',
+          'How many days can I survive without a salary?',
+          'What should I do if my company becomes risky?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // === CANONICAL 10: Should I take a new EMI? ===
+    if (lower.includes('should i take a new emi') || lower.includes('take a new emi') || lower.includes('take an emi')) {
+      return {
+        text: `💳 **NEW EMI PRUDENCE AUDIT**\n\n` +
+          `• **Current Existing EMI:** ₹8,000/month\n` +
+          `• **FINFOLIO Safe Additional EMI Ceiling:** **₹10,000/month**\n` +
+          `• **Recommended Additional EMI:** **₹7,500/month**\n` +
+          `• **Maximum Safe Total Debt Burden:** ₹18,000/mo (27.7% DTI)\n\n` +
+          `✅ **Verdict:** You can take a new EMI **ONLY IF it is under ₹10,000/month** (such as a two-wheeler, necessary appliance, or modest personal loan under ₹6.0L–₹8.5L).\n\n` +
+          `❌ **Avoid:** Any EMI above ₹10,000 (such as a ₹20L home loan or high-end car EMI) until Example Technologies transitions to Low Risk or you complete your career transition.`,
+        suggestions: [
+          'Can I afford a ₹20 lakh home loan?',
+          'Which loan is safer for me?',
+          'Why is my loan affordability lower than bank eligibility?',
+        ]
+      };
+    }
+
+    // === CANONICAL 12: What will happen to my emergency fund? ===
+    if (lower.includes('what will happen to my emergency fund') || lower.includes('happen to my emergency fund')) {
+      return {
+        text: `🛡️ **EMERGENCY FUND STATUS & PROJECTION**\n\n` +
+          `• **Current Reserve Balance:** **₹2,10,000 INR**\n` +
+          `• **Monthly Essential Burn:** ₹35,000\n` +
+          `• **Current Survival Coverage:** **6.0 Months (180 Days)**\n` +
+          `• **Status Rating:** **EXCELLENT** (Meets 6-month benchmark standard)\n\n` +
+          `**Scenario Projections:**\n` +
+          `• **If you withdraw ₹50,000:** Drops to ₹1,60,000 (**4.5 Months / 135 Days**) — requires Nominee review.\n` +
+          `• **If you lose your job tomorrow:** Lasts exactly **180 Days** under standard burn, or **235 Days** under freeze mode.\n` +
+          `• **If you take a ₹20L loan:** Essential burn jumps to ₹55,000/mo, collapsing runway to **3.8 Months**.`,
+        suggestions: [
+          'Can I withdraw ₹50,000?',
+          'How many days can I survive without a salary?',
+          'How much emergency fund should I maintain?',
+        ]
+      };
+    }
+
+    // === CANONICAL 13: Why is my career risk moderate? ===
+    if (lower.includes('why is my career risk moderate') || lower.includes('career risk moderate')) {
+      return {
+        text: `⚠️ **CAREER RISK EXPLANATION: MODERATE**\n\n` +
+          `Your career risk is rated **MODERATE** due to the convergence of three factors:\n\n` +
+          `1. **Role Viability Shift:** While Software Engineer roles remain viable, industry hiring is shifting away from pure frontend/Node.js toward cloud infrastructure and AI application engineering.\n` +
+          `2. **Company Headwinds:** Example Technologies is undergoing selective hiring with a net headcount contraction of -4.2% and decelerating revenue (8% vs 28%).\n` +
+          `3. **Current Resilience Score (61/100):** Your lack of certified AWS Cloud and containerization skills creates friction if you need to transition rapidly.\n\n` +
+          `💡 *Completing AWS Cloud upskilling directly boosts resilience from 61 to 84, lowering career risk to LOW.*`,
+        suggestions: [
+          'Which skill gives me the biggest improvement?',
+          'What skills should I learn?',
+          'What jobs are suitable for me?',
+        ]
+      };
+    }
+
+    // === CANONICAL 14: Which skill gives me the biggest improvement? ===
+    if (lower.includes('which skill gives me the biggest') || lower.includes('biggest improvement') || lower.includes('best skill to learn') || lower.includes('top skill')) {
+      return {
+        text: `⚡ **MAXIMUM IMPACT SKILL: CLOUD / AWS SOLUTIONS**\n\n` +
+          `• **Skill:** AWS Cloud Architecture (IAM, VPC, ECS, S3, Serverless)\n` +
+          `• **Current Level:** 2/5 (Foundational)\n` +
+          `• **Target Level:** 4/5 (Architectural Competence)\n` +
+          `• **Time Investment:** **0–3 Months (Phase 1)**\n` +
+          `• **Resilience Impact:** **+14 Points** (Lifts overall score from 61 to 75 immediately!)\n\n` +
+          `🎯 **Why AWS Cloud First?**\n` +
+          `1. Directly qualifies you for **Full Stack Developer (91% Match, ₹12L–₹16L LPA)**.\n` +
+          `2. Unlocks **Cloud Solutions Engineer (78% Match, ₹15L–₹20L LPA)**.\n` +
+          `3. Provides highest market mobility across top Indian tech employers in Bengaluru, Hyderabad, and Pune.`,
+        suggestions: [
+          'What skills should I learn?',
+          'What jobs are suitable for me?',
+          'Why is my career risk moderate?',
+        ]
+      };
+    }
+
+    // === CANONICAL 15: What should I do first if my company becomes unstable? ===
+    if (lower.includes('what should i do first') || lower.includes('company becomes unstable') || lower.includes('company is unstable')) {
+      return {
+        text: `🛡️ **4-STEP EMERGENCY INSTABILITY TRIAGE PROTOCOL**\n\n` +
+          `If Example Technologies or your employer displays instability signals:\n\n` +
+          `1. **STEP 1 — FREEZE DISCRETIONARY SPENDING (Day 1):**\n` +
+          `   • Cut lifestyle wants by 35% to drop burn from ₹35,000 to ₹26,500/mo.\n` +
+          `   • Extends your ₹2,10,000 emergency buffer from **6.0 to 7.8 Months**.\n\n` +
+          `2. **STEP 2 — ZERO NEW DEBT (Day 1):**\n` +
+          `   • Freeze all new loan applications, credit card EMIs, and large purchases.\n\n` +
+          `3. **STEP 3 — ACCELERATE PHASE 1 UPSKILLING (Weeks 1–6):**\n` +
+          `   • Focus on AWS Solutions Architect certification to close your primary skill gap.\n\n` +
+          `4. **STEP 4 — ACTIVATE CAREER TRANSITION MODE (Month 2):**\n` +
+          `   • Target Full Stack Developer (91% match) and Backend Engineer (86% match) openings before layoffs materialize.`,
+        suggestions: [
+          'How many days can I survive without a salary?',
+          'What jobs are suitable for me?',
+          'Can I afford a ₹20 lakh home loan?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // === CANONICAL 16: Why is my loan affordability lower than bank eligibility? ===
+    if (lower.includes('lower than bank eligibility') || lower.includes('loan affordability lower') || lower.includes('difference between bank') || lower.includes('bank vs finfolio')) {
+      return {
+        text: `⚖️ **FINFOLIO RESILIENT AFFORDABILITY vs BANK ELIGIBILITY**\n\n` +
+          `• **FINFOLIO Safe EMI:** **₹10,000 / month** (Safe Loan: ₹6.0L – ₹8.5L)\n` +
+          `• **Bank Lending Approval:** **₹24,500 / month** (Bank Loan: ₹22.0 Lakhs)\n` +
+          `• **Gap:** Bank offers **2.5x more debt** than is safe for you!\n\n` +
+          `🏦 **Why the Difference Exists:**\n` +
+          `• **Commercial Banks** calculate *maximum extractable interest before legal default* using a rigid 50% FOIR (Fixed Obligation to Income Ratio). They do not care if an EMI wipes out your savings or forces you to skip emergency funds.\n` +
+          `• **FINFOLIO Resilient Affordability** calculates *sustainable borrowing* that preserves your essential ₹35,000/mo living budget and protects your **6-month emergency survival runway** even if your employer undergoes corporate restructuring.\n\n` +
+          `💡 *A bank approval is an offer of debt risk, not a certificate of financial safety.*`,
+        suggestions: [
+          'Can I afford a ₹20 lakh home loan?',
+          'Which loan is safer for me?',
+          'What should I do if my company becomes risky?',
+        ]
+      };
+    }
+
+    // 0A. "What should I do if my company becomes risky?" / "Should I continue in my current company?"
+    if (lower.includes('company becomes risky') || lower.includes('company is risky') || lower.includes('company risk') || lower.includes('continue in my current company') || lower.includes('should i continue in my company')) {
+      return {
+        text: `🏢 **COMPANY RISK RESPONSE PROTOCOL**\n\n` +
+          `Employer: **Example Technologies Pvt. Ltd.** (Risk: **MODERATE**, Stability: 68/100, Health: 72/100)\n` +
+          `Signal: Revenue growth deceleration (8% YoY vs 28% prior) and net tech hiring contraction.\n\n` +
+          `**Recommended 6-Step Action Plan:**\n` +
+          `1. Build emergency savings toward 6 months buffer (Current: 6.0 months / ₹2,10,000 intact).\n` +
+          `2. Avoid taking a high new EMI (Cap additional loan commitments to maximum ₹10,000/mo).\n` +
+          `3. Complete the recommended cloud skill upgrade (AWS Certified Solutions Architect Associate in 0–3 months).\n` +
+          `4. Prepare a transition-ready CV showcasing your full-stack Node.js + React experience.\n` +
+          `5. Review alternative roles matching your current skills (Career Transition Mode: 91% match to Full Stack Developer, ₹12L–₹16L LPA).\n` +
+          `6. Reassess your financial runway after the skill upgrade.\n\n` +
+          `💡 *Your current position remains viable, but proactive upskilling shifts your career resilience score from 61 to 84.*`,
+        suggestions: [
+          'What skills should I learn?',
+          'What job can I switch to?',
+          'Can I afford a ₹20 lakh home loan?',
+          'What happens if I lose my job?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // 0B. "Can I afford a ₹20 lakh home loan?"
+    if ((lower.includes('20 lakh') || lower.includes('20l') || lower.includes('20,00,000')) && (lower.includes('loan') || lower.includes('home loan') || lower.includes('afford'))) {
+      return {
+        text: `🏦 **LOAN AFFORDABILITY EVALUATION: ₹20 LAKH LOAN**\n\n` +
+          `• **Monthly Take-Home:** ₹65,000\n` +
+          `• **Existing EMI:** ₹8,000 (DTI: 12.3%)\n` +
+          `• **FINFOLIO Max Safe New EMI:** **₹10,000 / mo**\n` +
+          `• **FINFOLIO Safe Loan Range:** **₹6,00,000 – ₹8,50,000**\n` +
+          `• **Bank Lending Approval Ceiling:** ₹22,00,000 (₹24,500 EMI at 50% FOIR)\n\n` +
+          `⚠️ **VERDICT: CANNOT SAFELY AFFORD A ₹20 LAKH LOAN**\n\n` +
+          `While a commercial retail bank will happily approve you for up to ₹22 Lakhs, taking a ₹20 Lakh loan would require an EMI of ~₹20,000–₹22,000/month. Combined with your existing ₹8,000 EMI, your debt burden would consume **46% of your monthly income**.\n\n` +
+          `🚨 **Corporate Risk Hazard:** Under Example Technologies' Moderate Risk status, if your salary is delayed or restructured, a ₹20L loan would collapse your emergency runway from **6.0 months down to 3.1 months**, inducing immediate default hazard.\n\n` +
+          `✅ **FinFolio Advice:** Cap any new loan principal between **₹6,00,000 and ₹8,50,000** (max ₹10,000 EMI).`,
+        suggestions: [
+          'Which loan is safer for me?',
+          'What happens if I lose my job?',
+          'What should I do if my company becomes risky?',
+        ],
+        isAlert: true,
+        alertType: 'error'
+      };
+    }
+
+    // 0C. "Can I withdraw ₹50,000?" / Protected Withdrawal Query
+    if ((lower.includes('withdraw') && (lower.includes('50000') || lower.includes('50,000') || lower.includes('50k'))) || (lower.includes('withdraw') && lower.includes('emergency fund'))) {
+      return {
+        text: `🛡️ **HIGH-VALUE WITHDRAWAL PROTECTION ALERT**\n\n` +
+          `• **Requested Amount:** ₹50,000\n` +
+          `• **Protection Threshold:** ₹20,000 (Exceeded by ₹30,000)\n` +
+          `• **Nominee Review Required:** YES (nominee@finfolio.com)\n\n` +
+          `📊 **Runway Consequence Analysis:**\n` +
+          `• Current Emergency Fund: ₹2,10,000 (6.0 Months Runway / 180 Days)\n` +
+          `• Post-Withdrawal Reserve: **₹1,60,000** (4.5 Months Runway / 135 Days)\n` +
+          `• **Net Runway Loss:** **-1.5 Months (-45 Survival Days)**\n` +
+          `• Goal Impact: "Emergency Reserve" delayed by ~65 days.\n\n` +
+          `🔒 **Two-Person Governance Invariant:**\n` +
+          `Even after your nominee reviews and approves your request, no money moves automatically. You must confirm execution yourself with your 4-digit security PIN.`,
+        suggestions: [
+          'How many days can I survive without a salary?',
+          'What should I do if my company becomes risky?',
+          'Can I afford a ₹20 lakh home loan?',
+        ],
+        isAlert: true,
+        alertType: 'warning'
+      };
+    }
+
+    // 0D. "What skills should I learn?" / "Skills gap"
+    if (lower.includes('skills should i learn') || lower.includes('what skills') || lower.includes('skill gap') || lower.includes('skills to learn')) {
+      return {
+        text: `🚀 **CAREER RESILIENCE SKILLS ROADMAP**\n\n` +
+          `Current Career Resilience: **61/100** ➔ Target Potential: **84/100** (+23 Points)\n\n` +
+          `**Prioritized 3-Phase Upskilling Plan:**\n` +
+          `1. **Phase 1 (0–3 Months, HIGH PRIORITY):** Cloud / AWS Solutions\n` +
+          `   • Gap: Level 2/5 ➔ 4/5\n` +
+          `   • Focus: AWS Solutions Architect Associate (IAM, VPC, ECS Fargate, S3, Serverless)\n\n` +
+          `2. **Phase 2 (3–6 Months, HIGH PRIORITY):** Applied AI/ML & LLM Ops\n` +
+          `   • Gap: Level 1/5 ➔ 3/5\n` +
+          `   • Focus: LangChain orchestration, RAG architecture, vector search & FastAPI\n\n` +
+          `3. **Phase 3 (6–12 Months, MEDIUM PRIORITY):** DevOps & Kubernetes\n` +
+          `   • Gap: Level 2/5 ➔ 4/5\n` +
+          `   • Focus: Docker multi-stage builds, Kubernetes Helm charts & GitHub Actions CI/CD`,
+        suggestions: [
+          'What job can I switch to?',
+          'What should I do if my company becomes risky?',
+          'Can I afford to leave my current job?',
+        ]
+      };
+    }
+
+    // 0E. "What job can I switch to?" / "Career transition"
+    if (lower.includes('job can i switch') || lower.includes('what job') || lower.includes('career transition') || lower.includes('alternative role') || lower.includes('alternative job')) {
+      return {
+        text: `🎯 **CAREER TRANSITION MODE: TOP ALTERNATIVE ROLES**\n\n` +
+          `Current Role: **Software Engineer** (3 yrs exp, Bengaluru)\n\n` +
+          `1. **Full Stack Developer** — **91% Match**\n` +
+          `   • Salary Range: ₹12,00,000 – ₹16,00,000 / yr\n` +
+          `   • Transferable: React, Node.js, REST APIs, SQL\n` +
+          `   • Missing: Next.js App Router, Tailwind CSS, TypeScript Advanced\n\n` +
+          `2. **Backend Engineer** — **86% Match**\n` +
+          `   • Salary Range: ₹13,00,000 – ₹17,00,000 / yr\n` +
+          `   • Transferable: Node.js, SQL, Express, DB Architecture\n` +
+          `   • Missing: Distributed Systems, Redis Caching, Apache Kafka\n\n` +
+          `3. **Cloud Solutions Engineer** — **78% Match**\n` +
+          `   • Salary Range: ₹15,00,000 – ₹20,00,000 / yr\n` +
+          `   • Missing: AWS IAM, Terraform, ECS/EKS\n\n` +
+          `4. **Data Platform Engineer** — **72% Match**\n` +
+          `   • Salary Range: ₹14,00,000 – ₹19,00,000 / yr\n` +
+          `   • Missing: Python Pipelines, Apache Spark, Snowflake`,
+        suggestions: [
+          'What skills should I learn?',
+          'What should I do if my company becomes risky?',
+          'How many days can I survive without a salary?',
+        ]
+      };
+    }
+
+    // 0F. "Which loan is safer for me?" / "How much debt can I safely take?"
+    if (lower.includes('safer for me') || lower.includes('how much debt') || lower.includes('safe loan') || lower.includes('loan range')) {
+      return {
+        text: `⚖️ **FINFOLIO RESILIENT LOAN BENCHMARK**\n\n` +
+          `• **Maximum Safe Additional EMI:** **₹10,000 / month**\n` +
+          `• **Recommended Additional EMI:** **₹7,500 / month**\n` +
+          `• **Safe Principal Borrowing Range:** **₹6,00,000 – ₹8,50,000**\n` +
+          `• **Conservative Loan Amount:** ₹5,00,000\n` +
+          `• **Bank Commercial Eligible Limit:** Up to ₹22,00,000 (NOT recommended!)\n\n` +
+          `💡 **The Resilience Principle:** A bank checks the maximum money they can legally claim from your salary before insolvency. FINFOLIO calculates what you can comfortably pay while keeping a 6-month living reserve intact during economic or employer downturns.`,
+        suggestions: [
+          'Can I afford a ₹20 lakh home loan?',
+          'What should I do if my company becomes risky?',
+          'How much should I save every month?',
+        ]
+      };
+    }
 
     // 1. "How many days can I survive without a salary?"
     if (lower.includes('how many days') || lower.includes('survival days') || lower.includes('days can i survive') || (lower.includes('days') && lower.includes('survive'))) {
@@ -512,9 +955,9 @@ const AIChatbot: React.FC = () => {
     };
   };
 
-  const handleSend = (text?: string) => {
+  const handleSend = async (text?: string) => {
     const messageText = text || input;
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || loading) return;
 
     const userMessage: Message = {
       id: messages.length + 1,
@@ -525,20 +968,56 @@ const AIChatbot: React.FC = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setLoading(true);
+    setChatError(null);
+    setLastMessage(messageText);
 
-    setTimeout(() => {
-      const botResponse = generateResponse(messageText);
+    try {
+      const res = await api.post('/api/chat', {
+        message: messageText,
+        conversation: messages.slice(-8)
+      });
+
+      const data = res.data;
       const botMessage: Message = {
         id: messages.length + 2,
-        text: botResponse.text,
+        text: data.text,
         sender: 'bot',
         timestamp: new Date(),
-        suggestions: botResponse.suggestions,
-        isAlert: botResponse.isAlert,
-        alertType: botResponse.alertType,
+        suggestions: data.suggestions,
+        isAlert: data.isAlert,
+        alertType: data.alertType,
       };
       setMessages((prev) => [...prev, botMessage]);
-    }, 400);
+    } catch (err: any) {
+      console.error('Chat error, using fallback reasoning:', err);
+      try {
+        const botResponse = generateResponse(messageText);
+        const botMessage: Message = {
+          id: messages.length + 2,
+          text: botResponse.text,
+          sender: 'bot',
+          timestamp: new Date(),
+          suggestions: botResponse.suggestions,
+          isAlert: botResponse.isAlert,
+          alertType: botResponse.alertType,
+        };
+        setMessages((prev) => [...prev, botMessage]);
+      } catch {
+        setChatError('Unable to reach FINFOLIO Copilot. Please try again.');
+        const botMessage: Message = {
+          id: messages.length + 2,
+          text: '⚠️ Unable to reach FINFOLIO Copilot. Please try again.',
+          sender: 'bot',
+          timestamp: new Date(),
+          isAlert: true,
+          alertType: 'error',
+        };
+        setMessages((prev) => [...prev, botMessage]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -560,6 +1039,159 @@ const AIChatbot: React.FC = () => {
         ],
       }
     ]);
+  };
+
+  const renderInlineBold = (text: string, isDark: boolean) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const inner = part.slice(2, -2);
+        return (
+          <strong key={i} style={{ color: isDark ? '#38bdf8' : '#1d4ed8', fontWeight: 700 }}>
+            {inner}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
+  const renderFormattedScript = (text: string, isUser: boolean) => {
+    if (isUser) {
+      return (
+        <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 500, lineHeight: 1.6 }}>
+          {text}
+        </Typography>
+      );
+    }
+
+    const isDark = theme.palette.mode === 'dark';
+    const paragraphs = text.split('\n\n');
+
+    return (
+      <Stack spacing={1.5}>
+        {paragraphs.map((para, pIdx) => {
+          const trimmed = para.trim();
+          if (!trimmed) return null;
+
+          // Check if paragraph is a report header (e.g. 🧮 **LOAN EMI CALCULATION REPORT**)
+          if (
+            trimmed.startsWith('🧮') ||
+            trimmed.startsWith('📈') ||
+            trimmed.startsWith('🛡️') ||
+            trimmed.startsWith('📊') ||
+            trimmed.startsWith('⚠️') ||
+            trimmed.startsWith('🚨') ||
+            trimmed.startsWith('🔍')
+          ) {
+            const lines = trimmed.split('\n');
+            const titleLine = lines[0] ?? '';
+            const cleanTitle = titleLine.replace(/\*\*/g, '').trim();
+            const rest = lines.slice(1).join('\n');
+
+            return (
+              <Box
+                key={pIdx}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2.5,
+                  bgcolor: isDark ? 'rgba(30, 41, 59, 0.7)' : 'rgba(238, 242, 255, 0.7)',
+                  border: '1px solid',
+                  borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : 'rgba(99, 102, 241, 0.3)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 800,
+                    color: isDark ? '#38bdf8' : '#1e40af',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    mb: rest ? 1 : 0,
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  {cleanTitle}
+                </Typography>
+                {rest && (
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                    {renderInlineBold(rest, isDark)}
+                  </Typography>
+                )}
+              </Box>
+            );
+          }
+
+          // Check if paragraph is a key highlight callout (starts with 📌 or ✅ or ⚠️ or 💡)
+          if (trimmed.startsWith('📌') || trimmed.startsWith('✅') || trimmed.startsWith('⚠️') || trimmed.startsWith('💡')) {
+            const isAlertWarn = trimmed.startsWith('⚠️');
+            const isSuccess = trimmed.startsWith('✅');
+
+            return (
+              <Box
+                key={pIdx}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: isAlertWarn
+                    ? isDark ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2'
+                    : isSuccess
+                      ? isDark ? 'rgba(16, 185, 129, 0.12)' : '#f0fdf4'
+                      : isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+                  borderLeft: '4px solid',
+                  borderColor: isAlertWarn ? '#ef4444' : isSuccess ? '#10b981' : '#2563eb',
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                  {renderInlineBold(trimmed, isDark)}
+                </Typography>
+              </Box>
+            );
+          }
+
+          // Check if bullet point block
+          if (trimmed.includes('•') || trimmed.startsWith('-')) {
+            const items = trimmed.split('\n').filter((l) => l.trim().length > 0);
+            return (
+              <Box key={pIdx} sx={{ pl: 0.5 }}>
+                <Stack spacing={0.8}>
+                  {items.map((item, iIdx) => {
+                    const cleanItem = item.replace(/^[•\-]\s*/, '').trim();
+                    return (
+                      <Box key={iIdx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            bgcolor: isDark ? '#38bdf8' : '#2563eb',
+                            mt: 0.8,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.55 }}>
+                          {renderInlineBold(cleanItem, isDark)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            );
+          }
+
+          // Standard paragraph
+          return (
+            <Typography key={pIdx} variant="body2" sx={{ color: 'text.primary', lineHeight: 1.65, whiteSpace: 'pre-line' }}>
+              {renderInlineBold(trimmed, isDark)}
+            </Typography>
+          );
+        })}
+      </Stack>
+    );
   };
 
   return (
@@ -764,19 +1396,7 @@ const AIChatbot: React.FC = () => {
                       fontSize: '0.875rem',
                     }}
                   >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'inherit',
-                        fontWeight: message.sender === 'user' ? 500 : 400,
-                        '& strong': {
-                          fontWeight: 700,
-                          color: message.sender === 'user' ? '#ffffff' : theme.palette.mode === 'dark' ? '#38bdf8' : '#1d4ed8',
-                        },
-                      }}
-                    >
-                      {message.text}
-                    </Typography>
+                    {renderFormattedScript(message.text, message.sender === 'user')}
                   </Box>
                 </Box>
 
@@ -809,6 +1429,37 @@ const AIChatbot: React.FC = () => {
                 )}
               </Box>
             ))}
+
+            {/* Loading Indicator */}
+            {loading && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 1.5, ml: 0.5 }}>
+                <Avatar sx={{ width: 30, height: 30, bgcolor: 'primary.main' }}>
+                  <SmartToy sx={{ fontSize: 18, color: '#ffffff' }} />
+                </Avatar>
+                <Paper sx={{ p: 1.2, px: 2, bgcolor: alpha(theme.palette.primary.main, 0.08), borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                  <CircularProgress size={14} color="primary" />
+                  <Typography variant="body2" color="primary.main" fontWeight={600} sx={{ fontSize: '0.82rem' }}>
+                    Analyzing your FINFOLIO profile...
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
+            {/* Error with Retry */}
+            {chatError && (
+              <Alert
+                severity="error"
+                action={
+                  <Button color="inherit" size="small" onClick={() => handleSend(lastMessage)} sx={{ fontWeight: 800 }}>
+                    Retry
+                  </Button>
+                }
+                sx={{ mx: 0.5, my: 1.5, borderRadius: 2 }}
+              >
+                {chatError}
+              </Alert>
+            )}
+
             <div ref={messagesEndRef} />
           </Box>
 
@@ -829,6 +1480,7 @@ const AIChatbot: React.FC = () => {
                 size="small"
                 variant="outlined"
                 color="error"
+                disabled={loading}
                 onClick={() => handleSend('What happens if I lose my job tomorrow?')}
                 clickable
                 sx={{ fontWeight: 700, fontSize: '0.7rem' }}
@@ -839,6 +1491,7 @@ const AIChatbot: React.FC = () => {
                 size="small"
                 variant="outlined"
                 color="primary"
+                disabled={loading}
                 onClick={() => handleSend('How many days can I survive without a salary?')}
                 clickable
                 sx={{ fontWeight: 700, fontSize: '0.7rem' }}
@@ -849,6 +1502,7 @@ const AIChatbot: React.FC = () => {
                 size="small"
                 variant="outlined"
                 color="warning"
+                disabled={loading}
                 onClick={() => handleSend('Medical emergency plan for ₹5 Lakhs')}
                 clickable
                 sx={{ fontWeight: 700, fontSize: '0.7rem' }}
@@ -858,6 +1512,7 @@ const AIChatbot: React.FC = () => {
                 label="💳 Debt Triage"
                 size="small"
                 variant="outlined"
+                disabled={loading}
                 onClick={() => handleSend('How can I accelerate debt payoff with avalanche?')}
                 clickable
                 sx={{ fontWeight: 700, fontSize: '0.7rem' }}
@@ -870,10 +1525,13 @@ const AIChatbot: React.FC = () => {
                 placeholder="Ask: 'Can I afford ₹75k purchase?', 'Quit my job?'..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => {
+                disabled={loading}
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSend();
+                    if (!loading && input.trim()) {
+                      handleSend();
+                    }
                   }
                 }}
                 size="small"
@@ -890,7 +1548,7 @@ const AIChatbot: React.FC = () => {
               <IconButton
                 color="primary"
                 onClick={() => handleSend()}
-                disabled={!input.trim()}
+                disabled={loading || !input.trim()}
                 sx={{
                   bgcolor: '#2563eb',
                   color: '#ffffff',
@@ -906,7 +1564,7 @@ const AIChatbot: React.FC = () => {
                   },
                 }}
               >
-                <Send fontSize="small" />
+                {loading ? <CircularProgress size={18} color="inherit" /> : <Send fontSize="small" />}
               </IconButton>
             </Box>
           </Box>

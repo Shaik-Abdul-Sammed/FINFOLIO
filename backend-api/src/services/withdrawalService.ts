@@ -3,7 +3,7 @@ import { WalletService } from './walletService.js';
 import { FinancialGoalService } from './financialGoalService.js';
 import { ImpactAnalysisService, PreTransactionImpact } from './impactAnalysisService.js';
 import { EmergencyAnomalyResult, WithdrawalRequest, WithdrawalStatus } from '../models/Accountability.js';
-import { WalletTransaction } from '../models/Wallet.js';
+import { Wallet, WalletTransaction } from '../models/Wallet.js';
 import { EmergencyService } from './emergencyService.js';
 import { logger } from '../utils/logger.js';
 
@@ -73,7 +73,7 @@ export class WithdrawalService {
     const wallet = await WalletService.getWallet(userId);
     if (wallet.balance < parsedAmount) {
       throw new Error(
-        `Insufficient wallet balance ($${wallet.balance.toFixed(2)}) for requested withdrawal ($${parsedAmount.toFixed(2)}).`
+        `Insufficient wallet balance (₹${wallet.balance.toFixed(2)}) for requested withdrawal (₹${parsedAmount.toFixed(2)}).`
       );
     }
 
@@ -141,7 +141,7 @@ export class WithdrawalService {
       });
 
       logger.info(
-        `Withdrawal request #${request.id} executed instantly for user ${userId}: $${parsedAmount}`
+        `Withdrawal request #${request.id} executed instantly for user ${userId}: ₹${parsedAmount}`
       );
 
       return {
@@ -149,7 +149,7 @@ export class WithdrawalService {
         impact,
         executed: true,
         transaction,
-        message: `Withdrawal of $${parsedAmount.toFixed(2)} executed successfully.`,
+        message: `Withdrawal of ₹${parsedAmount.toFixed(2)} executed successfully.`,
       };
     }
 
@@ -223,7 +223,7 @@ export class WithdrawalService {
     }
 
     logger.info(
-      `Discretionary withdrawal request #${request.id} created in 'pending' status for user ${userId}: $${parsedAmount}`
+      `Discretionary withdrawal request #${request.id} created in 'pending' status for user ${userId}: ₹${parsedAmount}`
     );
 
     return {
@@ -266,7 +266,7 @@ export class WithdrawalService {
     const wallet = await WalletService.getWallet(userId);
     if (wallet.balance < parsedAmount) {
       throw new Error(
-        `Insufficient wallet balance ($${wallet.balance.toFixed(2)}) for requested withdrawal ($${parsedAmount.toFixed(2)}).`
+        `Insufficient wallet balance (₹${wallet.balance.toFixed(2)}) for requested withdrawal (₹${parsedAmount.toFixed(2)}).`
       );
     }
 
@@ -345,7 +345,7 @@ export class WithdrawalService {
           partnerEmail: partner.email,
           type: 'withdrawal_decision',
           title: '⚡ Conscious Override Notice',
-          message: `User #${userId} exercised a conscious override for $${parsedAmount.toFixed(2)} (${category}). Consequence acknowledged: "${trimmedAck}"`,
+          message: `User #${userId} exercised a conscious override for ₹${parsedAmount.toFixed(2)} (${category}). Consequence acknowledged: "${trimmedAck}"`,
           details: {
             requestId: request.id,
             amount: parsedAmount,
@@ -361,7 +361,7 @@ export class WithdrawalService {
     }
 
     logger.info(
-      `Conscious override executed for user ${userId}: $${parsedAmount} (Request #${request.id})`
+      `Conscious override executed for user ${userId}: ₹${parsedAmount} (Request #${request.id})`
     );
 
     return {
@@ -369,7 +369,7 @@ export class WithdrawalService {
       impact,
       executed: true,
       transaction,
-      message: `Withdrawal of $${parsedAmount.toFixed(2)} executed via conscious override. Consequence acknowledged (+${impact.estimatedDelayDays}d delay).`,
+      message: `Withdrawal of ₹${parsedAmount.toFixed(2)} executed via conscious override. Consequence acknowledged (+${impact.estimatedDelayDays}d delay).`,
     };
   }
 
@@ -378,8 +378,20 @@ export class WithdrawalService {
    */
   static async executeApprovedWithdrawal(
     userId: number,
-    requestId: number
-  ): Promise<{ request: WithdrawalRequest; transaction: WalletTransaction }> {
+    requestId: number,
+    pin?: string
+  ): Promise<{ request: WithdrawalRequest; transaction: WalletTransaction; wallet?: Wallet; previousBalance?: number; newBalance?: number }> {
+    // 0. Verify PIN if supplied
+    if (pin !== undefined) {
+      if (!pin) {
+        throw new Error('Security PIN is required to execute withdrawal.');
+      }
+      const isValid = await DatabaseService.verifyUserPin(userId, pin);
+      if (!isValid) {
+        throw new Error('Invalid security PIN. Withdrawal execution denied.');
+      }
+    }
+
     // 1. Atomically transition from 'approved' to 'executed' to eliminate race conditions
     const executedRequest = await DatabaseService.atomicTransitionApprovedToExecuted(
       requestId,
@@ -407,6 +419,7 @@ export class WithdrawalService {
 
     // 2. Perform atomic balance deduction
     let transaction: WalletTransaction;
+    let wallet: Wallet;
     try {
       const result = await WalletService.withdraw(
         userId,
@@ -416,6 +429,7 @@ export class WithdrawalService {
         `req-${executedRequest.id}`
       );
       transaction = result.transaction;
+      wallet = result.wallet;
     } catch (deductErr) {
       // Revert request status back to 'approved' if balance deduction failed
       await DatabaseService.updateWithdrawalRequestStatus(requestId, 'approved');
@@ -450,10 +464,13 @@ export class WithdrawalService {
     });
 
     logger.info(
-      `Approved withdrawal request #${requestId} executed for user ${userId}: $${executedRequest.amount}`
+      `Approved withdrawal request #${requestId} executed for user ${userId}: ₹${executedRequest.amount}`
     );
 
-    return { request: executedRequest, transaction };
+    const previousBalance = wallet.balance + executedRequest.amount;
+    const newBalance = wallet.balance;
+
+    return { request: executedRequest, transaction, wallet, previousBalance, newBalance };
   }
 
   /**

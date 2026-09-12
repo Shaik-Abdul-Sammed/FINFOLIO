@@ -370,7 +370,7 @@ export default function WithdrawalModal({
               <MenuItem value="">General Savings (No Specific Goal)</MenuItem>
               {goals.map(g => (
                 <MenuItem key={g.id} value={g.id}>
-                  {g.name} (${g.currentAmount.toLocaleString()} / ${g.targetAmount.toLocaleString()})
+                  {g.name} (₹{g.currentAmount.toLocaleString('en-IN')} / ₹{g.targetAmount.toLocaleString('en-IN')})
                 </MenuItem>
               ))}
             </TextField>

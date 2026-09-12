@@ -7,7 +7,7 @@ export class WalletService {
    * Get or initialize a user's wallet
    */
   static async getWallet(userId: number): Promise<Wallet> {
-    return await DatabaseService.getOrCreateWallet(userId, 0.00, 'USD');
+    return await DatabaseService.getOrCreateWallet(userId, 0.00, 'INR');
   }
 
   /**

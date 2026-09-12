@@ -318,7 +318,7 @@ const BudgetPlanner = () => {
                 {formatAmount(remaining)}
               </Typography>
               <Typography variant="caption" fontWeight="700" color={remaining === 0 ? 'success.main' : remaining > 0 ? 'info.main' : 'error.main'}>
-                {remaining === 0 ? '✓ Every Dollar Assigned!' : remaining > 0 ? `Assign ${formatAmount(remaining)} to reach zero` : '⚠️ Budget over-allocated!'}
+                {remaining === 0 ? '✓ Every Rupee Assigned!' : remaining > 0 ? `Assign ${formatAmount(remaining)} to reach zero` : '⚠️ Budget over-allocated!'}
               </Typography>
             </CardContent>
           </Card>

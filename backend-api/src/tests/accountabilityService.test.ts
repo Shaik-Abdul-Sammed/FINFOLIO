@@ -1,10 +1,19 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { AccountabilityService } from '../services/accountabilityService.js';
 import { DatabaseService } from '../services/databaseService.js';
 
 describe('FinFolio Phase 4: Accountability Engine', () => {
   const testUserId = 88;
   const partnerEmail = 'mentor.sarah@example.com';
+
+  beforeAll(() => {
+    DatabaseService.resetInMemoryState();
+    DatabaseService.setUseInMemory(true);
+  });
+
+  afterAll(() => {
+    DatabaseService.setUseInMemory(false);
+  });
 
   describe('Partner Invitation, Acceptance & Revocation', () => {
     it('should successfully invite a new accountability partner in pending status', async () => {

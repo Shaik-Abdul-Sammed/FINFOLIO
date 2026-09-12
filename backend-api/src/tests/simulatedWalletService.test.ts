@@ -11,13 +11,13 @@ describe('FinFolio Phase 3: Simulated Wallet & Auditable Ledger', () => {
   });
 
   describe('Wallet Lifecycle & Initialization', () => {
-    it('should initialize a wallet with zero balance and USD currency', async () => {
+    it('should initialize a wallet with zero balance and INR currency', async () => {
       const wallet = await WalletService.getWallet(userId);
 
       expect(wallet).toBeDefined();
       expect(wallet.userId).toBe(userId);
       expect(wallet.balance).toBe(0);
-      expect(wallet.currency).toBe('USD');
+      expect(wallet.currency).toBe('INR');
     });
 
     it('should return the same wallet idempotently on subsequent calls', async () => {

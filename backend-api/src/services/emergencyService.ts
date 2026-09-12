@@ -47,7 +47,7 @@ export class EmergencyService {
     const wallet = await WalletService.getWallet(userId);
     if (wallet.balance < parsedAmount) {
       throw new Error(
-        `Insufficient wallet balance ($${wallet.balance.toFixed(2)}) for requested emergency withdrawal ($${parsedAmount.toFixed(2)}).`
+        `Insufficient wallet balance (₹${wallet.balance.toFixed(2)}) for requested emergency withdrawal (₹${parsedAmount.toFixed(2)}).`
       );
     }
 
@@ -118,7 +118,7 @@ export class EmergencyService {
           partnerEmail: partner.email,
           type: 'emergency_withdrawal',
           title: '🚨 Emergency Withdrawal Executed',
-          message: `User #${userId} executed an emergency withdrawal of $${parsedAmount.toFixed(2)} for '${category}'. Reason: "${trimmedReason}"`,
+          message: `User #${userId} executed an emergency withdrawal of ₹${parsedAmount.toFixed(2)} for '${category}'. Reason: "${trimmedReason}"`,
           details: {
             requestId: request.id,
             amount: parsedAmount,
@@ -167,7 +167,7 @@ export class EmergencyService {
     }
 
     logger.info(
-      `Emergency withdrawal #${request.id} executed for user ${userId}: $${parsedAmount} (Partners notified: ${partnersNotifiedCount})`
+      `Emergency withdrawal #${request.id} executed for user ${userId}: ₹${parsedAmount} (Partners notified: ${partnersNotifiedCount})`
     );
 
     return {
@@ -176,7 +176,7 @@ export class EmergencyService {
       impact,
       anomaly,
       partnersNotified: partnersNotifiedCount,
-      message: `Emergency withdrawal of $${parsedAmount.toFixed(2)} executed immediately. Accountability partner(s) notified.`,
+      message: `Emergency withdrawal of ₹${parsedAmount.toFixed(2)} executed immediately. Accountability partner(s) notified.`,
     };
   }
 

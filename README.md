@@ -21,6 +21,46 @@ FINFOLIO is a unified, multi-tiered financial command center designed to bridge 
 
 ---
 
+## Employee Financial Intelligence & Resilience Ecosystem
+
+FINFOLIO unites fintech personal finance with corporate business outlook and career intelligence. The **Employee ID (`EMP-RKVT-1001`)** serves as the central identity mesh connecting:
+
+```mermaid
+graph TD
+    EMP["Employee Identity<br/>EMP-RKVT-1001: Rahul Sharma<br/>₹65,000/mo Take-Home | ₹7.8L LPA"] --> COMP["Employer Outlook & Stability<br/>Example Technologies (COMP-EX-001)<br/>Health: 72/100 | Stability: 68/100 | Risk: MODERATE"]
+    EMP --> CAREER["Career Risk & Job Security<br/>Stability: 74/100 | Resilience: 61/100 → 84/100"]
+    CAREER --> SKILLS["Skill Gap & 3-Phase Roadmap<br/>0-3m: Cloud/AWS | 3-6m: AI/LLMOps | 6-12m: DevOps"]
+    CAREER --> TRANS["Career Transition Mode<br/>Full Stack (91%) | Backend (86%) | Cloud (78%) | Data (72%)"]
+    EMP --> LOAN["Resilient Loan Affordability<br/>Safe EMI: ₹10,000 vs Bank: ₹24,500<br/>Safe Loan: ₹6.0L-₹8.5L vs Bank: ₹22.0L"]
+    EMP --> WALLET["Liquid Wallet & Emergency Buffer<br/>₹1,00,000 Wallet | ₹2,10,000 Buffer (6.0m Runway)"]
+    WALLET --> GOV["High-Value Withdrawal Governance<br/>₹20,000 Nominee Threshold<br/>Invariant: Nominee review ≠ Transfer; User PIN 1234 Executes"]
+    EMP --> COPILOT["Deterministic AI Copilot<br/>Full Context Q&A for Loans, Restructuring & Runway"]
+```
+
+### Key Pillars
+
+1. **Company Financial & Business Outlook**: Tracks employer growth deceleration (8% YoY vs 28% prior), EBITDA margin compression (-3.4%), hiring freezes, and restructuring risks to dynamically assess employee stability.
+2. **Career Risk & Skill Gap Engine**: Evaluates role viability, providing a prioritized 3-phase roadmap (AWS Cloud, AI/ML & LLM Ops, DevOps/K8s) lifting resilience from 61/100 to 84/100.
+3. **Career Transition Mode**: Matches employee skillsets against alternative high-demand market roles with LPA salary bands and pinpointed missing skill tags.
+4. **Resilient Loan Affordability**: Replaces reckless bank maximums (₹24,500 EMI / ₹22 Lakh loan) with sustainable caps (₹10,000 Safe EMI / ₹6.0L–₹8.5L loan) that preserve a 6-month emergency reserve under corporate restructuring.
+5. **High-Value Withdrawal Protection**: Two-person governance protocol requiring Nominee review above ₹20,000 without granting custodial control to the nominee.
+6. **Deterministic AI Copilot**: Grounded conversational assistant answering 16 canonical queries regarding loan affordability, company restructuring, emergency runway, and upskilling roadmaps.
+
+### Employee Intelligence API Endpoints
+
+| Method | Endpoint | Description | Status / Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/employee/profile` | Fetches active employee identity (`EMP-RKVT-1001`), salary, and scores | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/company-intelligence` | Employer revenue trends, EBITDA margins, and stability meter | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/career-risk` | Role viability, career risk explanation, and resilience scores | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/skills` | 7 technical skills with current/target levels and roadmap phases | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/career-transitions` | 4 ranked transition roles with salary bands and missing skills | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/loan-affordability` | Safe EMI (₹10k) vs Bank EMI (₹24.5k) and safe loan ranges | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/income-resilience` | Monthly burn rate (₹35k), emergency runway (6.0m), and status | 200 OK (Public/Demo) |
+| `GET` | `/api/employee/full-context` | Consolidated bundle for AI Copilot grounding | 200 OK (Public/Demo) |
+
+---
+
 ## Problem Statement
 
 Traditional personal financial management is fundamentally broken, plagued by systemic limitations:

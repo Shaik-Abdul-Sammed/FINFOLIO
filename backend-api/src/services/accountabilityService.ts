@@ -360,8 +360,8 @@ export class AccountabilityService {
           rule: matchedRule,
           partnerId: matchedRule.partnerId || undefined,
           reason: requiresApproval
-            ? `Amount ($${amount.toFixed(2)}) exceeds instant threshold ($${threshold.toFixed(2)}) for important category.`
-            : `Amount ($${amount.toFixed(2)}) is within instant limit ($${threshold.toFixed(2)}).`,
+            ? `Amount (₹${amount.toFixed(2)}) exceeds instant threshold (₹${threshold.toFixed(2)}) for important category.`
+            : `Amount (₹${amount.toFixed(2)}) is within instant limit (₹${threshold.toFixed(2)}).`,
           maxInstantAmount: threshold,
         };
       }
@@ -384,7 +384,7 @@ export class AccountabilityService {
         tier: 'essential',
         rule: null,
         reason: 'Essential need: no approval required.',
-        maxInstantAmount: 10000,
+        maxInstantAmount: 100000,
       };
     }
 
@@ -396,8 +396,8 @@ export class AccountabilityService {
         tier: 'important',
         rule: null,
         reason: requiresApproval
-          ? `Important expense ($${amount.toFixed(2)}) exceeds instant threshold ($${threshold.toFixed(2)}).`
-          : `Important expense within instant limit ($${threshold.toFixed(2)}).`,
+          ? `Important expense (₹${amount.toFixed(2)}) exceeds instant threshold (₹${threshold.toFixed(2)}).`
+          : `Important expense within instant limit (₹${threshold.toFixed(2)}).`,
         maxInstantAmount: threshold,
       };
     }

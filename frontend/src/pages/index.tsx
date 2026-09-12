@@ -456,7 +456,7 @@ export default function Home() {
                   { feature: 'Zero-Based Cash Flow Budgeting (50/30/20)', sheets: 'Manual', banks: false, finfolio: true },
                   { feature: 'Debt Avalanche vs Snowball Simulator', sheets: 'Complex formulas', banks: false, finfolio: true },
                   { feature: 'AI Career Resilience & Skill Gap Trainer', sheets: false, banks: false, finfolio: true },
-                  { feature: 'Multi-Currency Conversion (USD, INR, EUR, GBP)', sheets: 'Fragile', banks: 'No', finfolio: true },
+                  { feature: 'Deep Indian Rupee (INR) Resilience Engine & Financial Context', sheets: 'Fragile', banks: 'No', finfolio: true },
                   { feature: 'Data Privacy & Zero Ad Tracking', sheets: true, banks: false, finfolio: true },
                 ].map((row, idx) => (
                   <TableRow key={idx}>

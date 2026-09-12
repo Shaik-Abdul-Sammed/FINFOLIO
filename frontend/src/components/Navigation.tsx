@@ -19,7 +19,13 @@ import {
   Divider,
   Chip,
   alpha,
-  Tooltip
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -40,8 +46,10 @@ import {
   School,
   People,
   SupervisorAccount,
+  Security,
   Brightness4,
   Brightness7,
+  RestartAlt,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -49,6 +57,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme as useAppTheme } from '@/components/ThemeProvider';
 import { useCurrency, CURRENCIES, SupportedCurrency } from '@/context/CurrencyContext';
 import NotificationCenter from './NotificationCenter';
+import { employeeService } from '@/services/employeeService';
 
 const Navigation = () => {
   const theme = useTheme();
@@ -72,6 +81,28 @@ const Navigation = () => {
 
   const handleUserMenuClose = () => {
     setUserMenuAnchor(null);
+  };
+
+  const [demoResetOpen, setDemoResetOpen] = React.useState(false);
+  const [demoResetLoading, setDemoResetLoading] = React.useState(false);
+  const [demoResetSuccess, setDemoResetSuccess] = React.useState<string | null>(null);
+
+  const handleDemoReset = async () => {
+    try {
+      setDemoResetLoading(true);
+      const res = await employeeService.demoReset();
+      setDemoResetSuccess(res.message || 'Demo state restored successfully!');
+      setTimeout(() => {
+        setDemoResetOpen(false);
+        setDemoResetSuccess(null);
+        window.location.reload();
+      }, 1200);
+    } catch (err: any) {
+      console.error('Demo reset failed:', err);
+      alert('Demo reset failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setDemoResetLoading(false);
+    }
   };
 
   const navGroups = [
@@ -100,10 +131,12 @@ const Navigation = () => {
       label: 'Intelligence',
       icon: <Insights sx={{ fontSize: 19 }} />,
       items: [
+        { label: 'Career & Corporate Intelligence', href: '/career', icon: <School sx={{ fontSize: 18 }} /> },
         { label: 'Market Insights', href: '/insights', icon: <Insights sx={{ fontSize: 18 }} /> },
         { label: 'Financial Assessment', href: '/assessment', icon: <Assessment sx={{ fontSize: 18 }} /> },
         { label: 'Career Job Trainer', href: '/education?tab=career', icon: <School sx={{ fontSize: 18 }} /> },
         { label: 'Accountability Partner', href: '/accountability', icon: <SupervisorAccount sx={{ fontSize: 18 }} /> },
+        { label: 'Nominee Review Portal', href: '/nominee', icon: <Security sx={{ fontSize: 18 }} /> },
       ]
     },
     {
@@ -196,6 +229,28 @@ const Navigation = () => {
             <ListItemText
               primary="⚡ Start 360° Audit"
               primaryTypographyProps={{ fontWeight: 800, fontSize: '0.9rem', color: 'primary.main' }}
+            />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding sx={{ mb: 1 }}>
+          <ListItemButton
+            onClick={() => {
+              setDrawerOpen(false);
+              setDemoResetOpen(true);
+            }}
+            sx={{
+              borderRadius: 2,
+              mx: 1,
+              bgcolor: alpha(theme.palette.warning.main, 0.08),
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`,
+            }}
+          >
+            <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center', color: 'warning.main' }}>
+              <RestartAlt sx={{ fontSize: 20 }} />
+            </Box>
+            <ListItemText
+              primary="🔄 Restore Demo State"
+              primaryTypographyProps={{ fontWeight: 700, fontSize: '0.9rem', color: 'warning.main' }}
             />
           </ListItemButton>
         </ListItem>
@@ -397,19 +452,6 @@ const Navigation = () => {
               >
                 ⚡ Audit
               </Button>
-              <Chip
-                size="small"
-                label="₹ INR"
-                sx={{
-                  mr: 0.5,
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  borderRadius: 1.5,
-                  border: `1px solid ${theme.palette.divider}`,
-                  color: 'text.primary',
-                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                }}
-              />
               <Tooltip title={`Switch to ${mode === 'dark' ? 'Light' : 'Dark'} mode`}>
                 <IconButton onClick={toggleTheme} size="small" sx={{ mr: 1 }}>
                   {mode === 'dark' ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
@@ -556,24 +598,6 @@ const Navigation = () => {
                   ⚡ Start Audit
                 </Button>
 
-                {/* Currency Indicator (Strictly INR) */}
-                <Tooltip title="FinFolio is strictly configured for Indian Rupee (₹ INR)">
-                  <Chip
-                    size="small"
-                    label="₹ INR"
-                    sx={{
-                      fontSize: '0.8rem',
-                      fontWeight: 800,
-                      py: 0.5,
-                      px: 0.5,
-                      borderRadius: 1.5,
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                      color: 'primary.main',
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    }}
-                  />
-                </Tooltip>
-
                 {/* Theme Mode Toggle */}
                 <Tooltip title={`Switch to ${mode === 'dark' ? 'Light' : 'Dark'} mode`}>
                   <IconButton
@@ -672,6 +696,16 @@ const Navigation = () => {
                         <SettingsIcon sx={{ mr: 1.5, fontSize: 18, color: 'text.secondary' }} />
                         <Typography variant="body2">Settings</Typography>
                       </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleUserMenuClose();
+                          setDemoResetOpen(true);
+                        }}
+                        sx={{ borderRadius: 1.5, py: 0.75, color: 'warning.main' }}
+                      >
+                        <RestartAlt sx={{ mr: 1.5, fontSize: 18, color: 'warning.main' }} />
+                        <Typography variant="body2" fontWeight={600}>Demo Reset</Typography>
+                      </MenuItem>
                       <Divider sx={{ my: 0.5 }} />
                       <MenuItem onClick={handleLogout} sx={{ borderRadius: 1.5, py: 0.75, color: 'error.main' }}>
                         <LogoutIcon sx={{ mr: 1.5, fontSize: 18, color: 'error.main' }} />
@@ -737,6 +771,68 @@ const Navigation = () => {
       >
         {drawer}
       </Drawer>
+
+      {/* Demo Reset Confirmation Dialog */}
+      <Dialog
+        open={demoResetOpen}
+        onClose={() => !demoResetLoading && setDemoResetOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1,
+            border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+            bgcolor: theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1, color: 'warning.main', fontWeight: 800 }}>
+          <RestartAlt sx={{ fontSize: 28 }} />
+          Reset Demo Data
+        </DialogTitle>
+        <DialogContent>
+          {demoResetSuccess ? (
+            <Alert severity="success" sx={{ my: 1, borderRadius: 2 }}>
+              {demoResetSuccess}
+            </Alert>
+          ) : (
+            <>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                This will reset the database to the pristine hackathon demo configuration:
+              </Typography>
+              <Box component="ul" sx={{ pl: 2.5, m: 0, '& li': { mb: 0.75, fontSize: '0.85rem', color: 'text.primary' } }}>
+                <li><strong>Employee:</strong> Rahul Sharma (<code>EMP-RKVT-1001</code>)</li>
+                <li><strong>Company:</strong> Example Tech Corp (<code>COMP-EX-001</code>)</li>
+                <li><strong>Wallet:</strong> Balance restored to <strong>₹1,00,000</strong></li>
+                <li><strong>Emergency Fund:</strong> <strong>₹2,10,000</strong> (6.0 months runway)</li>
+                <li><strong>Nominee Threshold:</strong> ₹20,000 (Priya Sharma active)</li>
+                <li><strong>Loans & Skills:</strong> All pristine metrics restored</li>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
+          <Button
+            onClick={() => setDemoResetOpen(false)}
+            disabled={demoResetLoading}
+            variant="outlined"
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDemoReset}
+            disabled={demoResetLoading}
+            variant="contained"
+            color="warning"
+            startIcon={demoResetLoading ? <CircularProgress size={16} color="inherit" /> : <RestartAlt />}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+          >
+            {demoResetLoading ? 'Resetting...' : 'Confirm Reset'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

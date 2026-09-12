@@ -36,7 +36,7 @@ interface RoleProfile {
   title: string;
   category: string;
   resilienceScore: number;
-  avgSalaryUSD: number;
+  avgSalaryINR: number;
   description: string;
   requiredSkills: string[];
 }
@@ -46,7 +46,7 @@ const TARGET_ROLES: RoleProfile[] = [
     title: 'Senior Data Scientist / AI Engineer',
     category: 'AI & Data Intelligence',
     resilienceScore: 94,
-    avgSalaryUSD: 145000,
+    avgSalaryINR: 2800000,
     description: 'High layoff resilience with rapid enterprise AI adoption. Core focus on LLMs, MLOps, and scalable pipelines.',
     requiredSkills: ['Python', 'Machine Learning', 'PyTorch', 'SQL', 'MLOps', 'AWS', 'System Design', 'Deep Learning'],
   },
@@ -54,7 +54,7 @@ const TARGET_ROLES: RoleProfile[] = [
     title: 'Cloud Platform Architect',
     category: 'Cloud & Infrastructure',
     resilienceScore: 92,
-    avgSalaryUSD: 155000,
+    avgSalaryINR: 3200000,
     description: 'Enterprise cloud migrations ensure sustained multi-year demand across economic cycles.',
     requiredSkills: ['Kubernetes', 'Terraform', 'AWS', 'GCP', 'Linux', 'Docker', 'CI/CD', 'Security Architecture'],
   },
@@ -62,7 +62,7 @@ const TARGET_ROLES: RoleProfile[] = [
     title: 'Full Stack Python & AI Engineer',
     category: 'Software Engineering',
     resilienceScore: 89,
-    avgSalaryUSD: 125000,
+    avgSalaryINR: 2400000,
     description: 'Versatile engineering combining modern web frameworks with generative AI capabilities.',
     requiredSkills: ['Python', 'FastAPI', 'React', 'PostgreSQL', 'Docker', 'Redis', 'TypeScript', 'Git'],
   },
@@ -70,7 +70,7 @@ const TARGET_ROLES: RoleProfile[] = [
     title: 'Enterprise Java / Go Microservices Lead',
     category: 'Enterprise Backend',
     resilienceScore: 88,
-    avgSalaryUSD: 135000,
+    avgSalaryINR: 2600000,
     description: 'Mission-critical financial infrastructure and distributed transactional systems.',
     requiredSkills: ['Java', 'Spring Boot', 'Kafka', 'Kubernetes', 'PostgreSQL', 'Microservices', 'Docker', 'REST APIs'],
   },
@@ -78,32 +78,32 @@ const TARGET_ROLES: RoleProfile[] = [
     title: 'Frontend Platform & Web Performance Architect',
     category: 'Web Engineering',
     resilienceScore: 84,
-    avgSalaryUSD: 120000,
+    avgSalaryINR: 2200000,
     description: 'Modern high-performance web applications, PWA architecture, and scalable UI design systems.',
     requiredSkills: ['React', 'TypeScript', 'Next.js', 'TailwindCSS', 'Web Performance', 'GraphQL', 'State Management', 'Figma'],
   },
 ];
 
-const PRESET_USER_PROFILES: Record<string, { currentTitle: string; skills: string[]; baseSalaryUSD: number }> = {
+const PRESET_USER_PROFILES: Record<string, { currentTitle: string; skills: string[]; baseSalaryINR: number }> = {
   frontend_dev: {
     currentTitle: 'Frontend Developer',
     skills: ['React', 'JavaScript', 'HTML5', 'CSS3', 'Git', 'TailwindCSS'],
-    baseSalaryUSD: 85000,
+    baseSalaryINR: 1050000,
   },
   java_dev: {
     currentTitle: 'Junior Java Developer',
     skills: ['Java', 'Spring Boot', 'SQL', 'Git', 'REST APIs'],
-    baseSalaryUSD: 80000,
+    baseSalaryINR: 900000,
   },
   data_analyst: {
     currentTitle: 'Data Analyst',
     skills: ['SQL', 'Python', 'Excel', 'Tableau', 'Pandas'],
-    baseSalaryUSD: 75000,
+    baseSalaryINR: 800000,
   },
   qa_engineer: {
     currentTitle: 'QA / Automation Tester',
     skills: ['Selenium', 'Java', 'Git', 'Postman', 'Manual Testing'],
-    baseSalaryUSD: 70000,
+    baseSalaryINR: 750000,
   },
 };
 
@@ -112,13 +112,13 @@ export default function JobTrainer() {
   const defaultProfile = PRESET_USER_PROFILES['frontend_dev'] ?? {
     currentTitle: 'Frontend Developer',
     skills: ['React', 'JavaScript', 'HTML5', 'CSS3', 'Git', 'TailwindCSS'],
-    baseSalaryUSD: 85000,
+    baseSalaryINR: 1050000,
   };
   const defaultRole: RoleProfile = TARGET_ROLES[0] ?? {
     title: 'Senior Data Scientist / AI Engineer',
     category: 'AI & Data Intelligence',
     resilienceScore: 94,
-    avgSalaryUSD: 145000,
+    avgSalaryINR: 2800000,
     description: 'High layoff resilience',
     requiredSkills: ['Python', 'Machine Learning', 'PyTorch', 'SQL', 'MLOps', 'AWS'],
   };
@@ -166,7 +166,7 @@ export default function JobTrainer() {
   const skillsToLearnCount = missingSkills.length;
   const projectedSalaryGrowthPct = Math.max(
     15,
-    Math.round(((targetRole.avgSalaryUSD - activeProfile.baseSalaryUSD) / Math.max(1, activeProfile.baseSalaryUSD)) * 100)
+    Math.round(((targetRole.avgSalaryINR - activeProfile.baseSalaryINR) / Math.max(1, activeProfile.baseSalaryINR)) * 100)
   );
 
   return (
@@ -273,7 +273,7 @@ export default function JobTrainer() {
                       />
                     </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      Market Avg: <strong>{formatAmount(role.avgSalaryUSD)}</strong> • {role.category}
+                      Market Avg: <strong>{formatAmount(role.avgSalaryINR)}</strong> • {role.category}
                     </Typography>
                   </Paper>
                 );

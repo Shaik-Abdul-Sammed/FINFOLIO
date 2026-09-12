@@ -685,7 +685,7 @@ export default function AccountabilityPage() {
                       : '⚡ INSTANT WITHDRAWAL PERMITTED'}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Tier:</strong> {evalResult.tier.toUpperCase()} | <strong>Instant Limit:</strong> ${evalResult.maxInstantAmount.toFixed(2)}
+                    <strong>Tier:</strong> {evalResult.tier.toUpperCase()} | <strong>Instant Limit:</strong> ₹{evalResult.maxInstantAmount.toLocaleString('en-IN')}
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
                     <strong>Engine Decision:</strong> {evalResult.reason}
@@ -882,7 +882,7 @@ export default function AccountabilityPage() {
                       <TableCell sx={{ fontWeight: 600 }}>#{req.id}</TableCell>
                       <TableCell>{req.category}</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>
-                        ${req.amount.toFixed(2)}
+                        ₹{req.amount.toLocaleString('en-IN')}
                       </TableCell>
                       <TableCell sx={{ maxWidth: 220 }}>{req.reason}</TableCell>
                       <TableCell>
@@ -1167,7 +1167,7 @@ export default function AccountabilityPage() {
                   Category: <strong>{selectedRequest.category}</strong>
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', my: 1 }}>
-                  ${selectedRequest.amount.toFixed(2)}
+                  ₹{selectedRequest.amount.toLocaleString('en-IN')}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
                   <strong>Reason:</strong> {selectedRequest.reason}

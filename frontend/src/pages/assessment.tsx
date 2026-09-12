@@ -70,7 +70,8 @@ import {
   ContentCopy,
   Download,
   RestartAlt,
-  Psychology
+  Psychology,
+  Share
 } from '@mui/icons-material';
 import {
   BarChart as RechartsBar,
@@ -223,6 +224,7 @@ export default function Assessment() {
 
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [activeCrisisTab, setActiveCrisisTab] = useState<'layoff' | 'medical' | 'inflation' | 'interest'>('layoff');
+  const [activeSectionTab, setActiveSectionTab] = useState<'overview' | 'stress' | 'wealth' | 'triage'>('overview');
 
   const handleNumberChange = (field: keyof FinancialData, rawVal: string) => {
     if (rawVal === '' || rawVal === undefined) {
@@ -662,6 +664,20 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
     URL.revokeObjectURL(url);
   };
 
+  const shareOnWhatsApp = () => {
+    if (!result) return;
+    const memo = `🛡️ *FINFOLIO 360° Financial Health & Resilience Audit*\n\n` +
+      `• Health Score: ${result.stabilityScore}/100 (${result.riskBand})\n` +
+      `• Liquid Net Worth: ₹${result.netWorth.toLocaleString('en-IN')}\n` +
+      `• Layoff Survival Runway: ${result.standardRunwayDays} Days (~${result.standardRunwayMonths} Months)\n` +
+      `• DTI Overburden: ${result.dtiRatio}% (${result.dtiStatus})\n` +
+      `• 6M Emergency Deficit: ${result.emergencyDeficit6M > 0 ? '₹' + result.emergencyDeficit6M.toLocaleString('en-IN') : 'Fully Funded'}\n` +
+      `• FIRE Readiness: ${result.fireAttainmentPct}% (${result.yearsToFire} years to freedom)\n\n` +
+      `Platform: FINFOLIO — Indian Employee Resilience Engine`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(memo)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header Banner */}
@@ -689,7 +705,7 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                 20-point comprehensive institutional stress-test: Layoff Defense, DTI Overburden, FIRE Projections, and Tax Minimization in Indian Rupees (₹).
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1.5}>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
               <Chip
                 label="🇮🇳 Indian Rupee (₹) Only"
                 sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: '#ffffff', fontWeight: 700 }}
@@ -702,6 +718,20 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                 sx={{ bgcolor: '#ffffff', color: '#1e3a8a', fontWeight: 700, '&:hover': { bgcolor: '#f1f5f9' } }}
               >
                 {copiedReport ? '✓ Copied' : 'Export Memo'}
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={shareOnWhatsApp}
+                startIcon={<Share fontSize="small" />}
+                sx={{
+                  bgcolor: '#25D366',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  '&:hover': { bgcolor: '#128C7E' },
+                }}
+              >
+                WhatsApp Share
               </Button>
             </Stack>
           </Box>
@@ -1097,7 +1127,53 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                 </GridTyped>
               </GridTyped>
 
-              {/* Feature 3 & 4: Tiered Emergency Deficit & DTI Stress Gauge */}
+              {/* Section Navigation Tabs */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 0.8,
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                }}
+              >
+                <ToggleButtonGroup
+                  value={activeSectionTab}
+                  exclusive
+                  onChange={(_, val) => { if (val) setActiveSectionTab(val); }}
+                  fullWidth
+                  size="small"
+                  sx={{
+                    display: 'flex',
+                    flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                    gap: 0.5,
+                    '& .MuiToggleButton-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderRadius: '8px !important',
+                      border: 'none',
+                      py: 1,
+                      fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: '#ffffff',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                      },
+                    },
+                  }}
+                >
+                  <ToggleButton value="overview">📊 Health &amp; Summary</ToggleButton>
+                  <ToggleButton value="stress">⚡ Crisis Stress-Tests</ToggleButton>
+                  <ToggleButton value="wealth">📈 10-20Y Wealth &amp; FIRE</ToggleButton>
+                  <ToggleButton value="triage">📋 Action Playbook &amp; Tax</ToggleButton>
+                </ToggleButtonGroup>
+              </Paper>
+
+              {/* TAB 1: OVERVIEW & HEALTH METRICS */}
+              {activeSectionTab === 'overview' && (
+                <Stack spacing={3.5}>
+                  {/* Feature 3 & 4: Tiered Emergency Deficit & DTI Stress Gauge */}
               <GridTyped container spacing={2}>
                 <GridTyped item xs={12} sm={6}>
                   <Paper sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
@@ -1127,202 +1203,7 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                   </Paper>
                 </GridTyped>
               </GridTyped>
-
-              {/* Feature 5: 10 & 20-Year Inflation-Adjusted Wealth Projections */}
-              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" fontWeight="800" gutterBottom>
-                  5. 20-Year Wealth Projection (12% CAGR vs 6% Indian Inflation)
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  Shows projected nominal portfolio vs real purchasing power after continuous 6% Indian inflation discounting.
-                </Typography>
-
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart
-                    data={[
-                      { year: 'Today', nominal: result.netWorth, real: result.netWorth },
-                      { year: '5 Years', nominal: result.netWorthProjection5Y, real: Math.round(result.netWorthProjection5Y * 0.74) },
-                      { year: '10 Years', nominal: result.netWorthProjection10Y, real: result.realNetWorthProjection10Y },
-                      { year: '20 Years', nominal: result.netWorthProjection20Y, real: Math.round(result.netWorthProjection20Y * 0.31) },
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="year" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" tickFormatter={(val) => `₹${Math.round(val / 100000)}L`} />
-                    <RechartsTooltip
-                      formatter={(val: any) => formatAmount(Number(val))}
-                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff' }}
-                    />
-                    <Legend />
-                    <Area type="monotone" dataKey="nominal" name="Nominal Net Worth (₹)" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} />
-                    <Area type="monotone" dataKey="real" name="Real Inflation-Adjusted (₹)" stroke="#10b981" fill="#10b981" fillOpacity={0.25} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Card>
-
-              {/* Feature 6 & 7: Career & Tech Skills Vulnerability + Dynamic Risk Profile */}
-              <GridTyped container spacing={2}>
-                <GridTyped item xs={12} sm={6}>
-                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                      <Work fontSize="small" color="primary" />
-                      <Typography variant="subtitle2" fontWeight="800">
-                        6. Career Layoff Vulnerability: {result.careerLayoffRiskPct}%
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      Recommended Transition Role: <strong>{result.recommendedSwitchRole}</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      Gap to close: <strong>{result.missingSkillsCount} High-Demand Skills</strong> (Prompt Eng, Cloud, AI APIs).
-                    </Typography>
-                  </Card>
-                </GridTyped>
-
-                <GridTyped item xs={12} sm={6}>
-                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                      <Psychology fontSize="small" color="secondary" />
-                      <Typography variant="subtitle2" fontWeight="800">
-                        7. Dynamic Risk Profile: {result.riskBand}
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      Target Asset Allocation: <strong>{result.riskBand === 'Aggressive' ? '70% Equity / 20% Debt / 10% Gold' : result.riskBand === 'Growth' ? '60% Equity / 30% Debt / 10% Gold' : '45% Equity / 45% Debt / 10% Gold'}</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      Tolerance Score: {data.riskTolerance}/10 • Volatility Drawdown Capacity: -22%
-                    </Typography>
-                  </Card>
-                </GridTyped>
-              </GridTyped>
-
-              {/* Feature 8 & 9: Goal Feasibility & FIRE Readiness */}
-              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" fontWeight="800">
-                    8 &amp; 9. Financial Independence &amp; FIRE Readiness Engine
-                  </Typography>
-                  <ToggleButtonGroup
-                    size="small"
-                    value={fireMode}
-                    exclusive
-                    onChange={(_, val) => val && setFireMode(val)}
-                  >
-                    <ToggleButton value="lean">Lean FIRE</ToggleButton>
-                    <ToggleButton value="standard">Standard</ToggleButton>
-                    <ToggleButton value="fat">Fat FIRE</ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-
-                <GridTyped container spacing={2}>
-                  <GridTyped item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-                      <Typography variant="caption" color="text.secondary">TARGET CAPITAL</Typography>
-                      <Typography variant="h6" fontWeight="800" color="primary.main">
-                        {formatAmount(fireMode === 'lean' ? result.leanFireTarget : fireMode === 'fat' ? result.fatFireTarget : result.standardFireTarget)}
-                      </Typography>
-                    </Paper>
-                  </GridTyped>
-                  <GridTyped item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-                      <Typography variant="caption" color="text.secondary">CURRENT ATTAINMENT</Typography>
-                      <Typography variant="h6" fontWeight="800" color="success.main">
-                        {result.fireAttainmentPct}%
-                      </Typography>
-                    </Paper>
-                  </GridTyped>
-                  <GridTyped item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-                      <Typography variant="caption" color="text.secondary">ESTIMATED TIME TO FIRE</Typography>
-                      <Typography variant="h6" fontWeight="800">
-                        {result.yearsToFire} Years
-                      </Typography>
-                    </Paper>
-                  </GridTyped>
-                </GridTyped>
-              </Card>
-
-              {/* Feature 10 & 11: Health Insurance & Discretionary Leakage */}
-              <GridTyped container spacing={2}>
-                <GridTyped item xs={12} sm={6}>
-                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 0.5 }}>
-                      10. Health Insurance Safety Floor
-                    </Typography>
-                    <Typography variant="body2" color={result.healthInsuranceDeficit > 0 ? 'warning.main' : 'success.main'}>
-                      {result.healthInsuranceDeficit > 0
-                        ? `Deficit: ${formatAmount(result.healthInsuranceDeficit)} (Current: ${formatAmount(data.healthInsuranceCover)})`
-                        : `✓ Full ₹10 Lakhs Coverage Maintained`}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Protects your liquid investments from emergency hospital bill erosion.
-                    </Typography>
-                  </Card>
-                </GridTyped>
-
-                <GridTyped item xs={12} sm={6}>
-                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 0.5 }}>
-                      11. Discretionary Spending Leakage
-                    </Typography>
-                    <Typography variant="body2">
-                      Wants: <strong>{result.discretionaryLeakageRatio}%</strong> of income (Golden standard: &le; 30%)
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Savings Discipline Rate: <strong>{result.savingsRate}%</strong> of monthly income.
-                    </Typography>
-                  </Card>
-                </GridTyped>
-              </GridTyped>
-
-              {/* Feature 12 & 13: Tax Inefficiency & Debt Payoff Accelerator */}
-              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" fontWeight="800" sx={{ mb: 1.5 }}>
-                  12 &amp; 13. Tax Inefficiency &amp; Debt Payoff Acceleration Engine
-                </Typography>
-                <GridTyped container spacing={2}>
-                  <GridTyped item xs={12} sm={6}>
-                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2.5 }}>
-                      <Typography variant="subtitle2" fontWeight="700">
-                        🧾 Recommended Regime: <strong>{result.recommendedTaxRegime}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Potential annual direct tax savings: <strong>{formatAmount(result.taxSavingsPotential)}/year</strong>.
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Audit Section 80C, 80D, and NPS Tier-1 deductions to minimize leakage.
-                      </Typography>
-                    </Paper>
-                  </GridTyped>
-
-                  <GridTyped item xs={12} sm={6}>
-                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2.5 }}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="subtitle2" fontWeight="700">
-                          💳 Strategy: {debtStrategy === 'avalanche' ? 'Avalanche' : 'Snowball'}
-                        </Typography>
-                        <Button
-                          size="small"
-                          variant="text"
-                          onClick={() => setDebtStrategy(debtStrategy === 'avalanche' ? 'snowball' : 'avalanche')}
-                          sx={{ fontSize: '0.7rem' }}
-                        >
-                          Switch
-                        </Button>
-                      </Stack>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Payoff Speedup: <strong>{result.avalancheMonthsSaved} months earlier</strong>.
-                      </Typography>
-                      <Typography variant="caption" color="success.main" fontWeight="700">
-                        Total Interest Saved: {formatAmount(result.avalancheInterestSaved)}
-                      </Typography>
-                    </Paper>
-                  </GridTyped>
-                </GridTyped>
-              </Card>
-
-              {/* Feature 14, 15, 16, 17, 18, 19: Metric Matrix */}
+                  {/* Feature 14, 15, 16, 17, 18, 19: Metric Matrix */}
               <GridTyped container spacing={2}>
                 <GridTyped item xs={12} sm={4}>
                   <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
@@ -1384,67 +1265,49 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                   </Paper>
                 </GridTyped>
               </GridTyped>
-
-              {/* Feature 20: Triage Playbook & Multi-Format Export */}
-              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                  <Typography variant="h6" fontWeight="800">
-                    20. Crisis Mitigation Playbook &amp; Export Center
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<Download fontSize="small" />}
-                      onClick={downloadJsonReport}
-                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
-                    >
-                      Download JSON
-                    </Button>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<ContentCopy fontSize="small" />}
-                      onClick={copyAuditMemo}
-                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
-                    >
-                      {copiedReport ? '✓ Copied Memo!' : 'Export Clipboard Memo'}
-                    </Button>
-                  </Stack>
-                </Box>
-
-                <Stack spacing={1.5}>
-                  {result.triagePlaybook.map((play, idx) => (
-                    <Paper
-                      key={idx}
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        borderLeft: '4px solid',
-                        borderColor: play.priority === 'P1' ? 'error.main' : play.priority === 'P2' ? 'warning.main' : 'info.main',
-                        bgcolor: 'background.default',
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Chip
-                          label={play.priority}
-                          size="small"
-                          color={play.priority === 'P1' ? 'error' : play.priority === 'P2' ? 'warning' : 'info'}
-                          sx={{ fontWeight: 800, height: 20, fontSize: '0.7rem' }}
-                        />
-                        <Typography variant="subtitle2" fontWeight="800">
-                          {play.title}
-                        </Typography>
-                      </Stack>
-                      <Typography variant="body2" color="text.secondary">
-                        {play.detail}
+                  {/* Feature 6 & 7: Career & Tech Skills Vulnerability + Dynamic Risk Profile */}
+              <GridTyped container spacing={2}>
+                <GridTyped item xs={12} sm={6}>
+                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <Work fontSize="small" color="primary" />
+                      <Typography variant="subtitle2" fontWeight="800">
+                        6. Career Layoff Vulnerability: {result.careerLayoffRiskPct}%
                       </Typography>
-                    </Paper>
-                  ))}
-                </Stack>
-              </Card>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Recommended Transition Role: <strong>{result.recommendedSwitchRole}</strong>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      Gap to close: <strong>{result.missingSkillsCount} High-Demand Skills</strong> (Prompt Eng, Cloud, AI APIs).
+                    </Typography>
+                  </Card>
+                </GridTyped>
 
-              {/* CRITICAL CONDITION STRESS-TEST & SHOCK DOCTOR */}
+                <GridTyped item xs={12} sm={6}>
+                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <Psychology fontSize="small" color="secondary" />
+                      <Typography variant="subtitle2" fontWeight="800">
+                        7. Dynamic Risk Profile: {result.riskBand}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Target Asset Allocation: <strong>{result.riskBand === 'Aggressive' ? '70% Equity / 20% Debt / 10% Gold' : result.riskBand === 'Growth' ? '60% Equity / 30% Debt / 10% Gold' : '45% Equity / 45% Debt / 10% Gold'}</strong>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      Tolerance Score: {data.riskTolerance}/10 • Volatility Drawdown Capacity: -22%
+                    </Typography>
+                  </Card>
+                </GridTyped>
+              </GridTyped>
+                </Stack>
+              )}
+
+              {/* TAB 2: CRISIS STRESS-TESTS */}
+              {activeSectionTab === 'stress' && (
+                <Stack spacing={3.5}>
+                  {/* CRITICAL CONDITION STRESS-TEST & SHOCK DOCTOR */}
               <Card sx={{ p: 3, borderRadius: 3, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', border: '1px solid', borderColor: 'divider' }}>
                 <Box sx={{ mb: 2.5 }}>
                   <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
@@ -1723,6 +1586,231 @@ Audited by FINFOLIO Personal Finance Intelligence Platform
                   </Box>
                 )}
               </Card>
+                </Stack>
+              )}
+
+              {/* TAB 3: WEALTH & FIRE PROJECTIONS */}
+              {activeSectionTab === 'wealth' && (
+                <Stack spacing={3.5}>
+                  {/* Feature 5: 10 & 20-Year Inflation-Adjusted Wealth Projections */}
+              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight="800" gutterBottom>
+                  5. 20-Year Wealth Projection (12% CAGR vs 6% Indian Inflation)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                  Shows projected nominal portfolio vs real purchasing power after continuous 6% Indian inflation discounting.
+                </Typography>
+
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart
+                    data={[
+                      { year: 'Today', nominal: result.netWorth, real: result.netWorth },
+                      { year: '5 Years', nominal: result.netWorthProjection5Y, real: Math.round(result.netWorthProjection5Y * 0.74) },
+                      { year: '10 Years', nominal: result.netWorthProjection10Y, real: result.realNetWorthProjection10Y },
+                      { year: '20 Years', nominal: result.netWorthProjection20Y, real: Math.round(result.netWorthProjection20Y * 0.31) },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="year" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={(val) => `₹${Math.round(val / 100000)}L`} />
+                    <RechartsTooltip
+                      formatter={(val: any) => formatAmount(Number(val))}
+                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff' }}
+                    />
+                    <Legend />
+                    <Area type="monotone" dataKey="nominal" name="Nominal Net Worth (₹)" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} />
+                    <Area type="monotone" dataKey="real" name="Real Inflation-Adjusted (₹)" stroke="#10b981" fill="#10b981" fillOpacity={0.25} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Card>
+                  {/* Feature 8 & 9: Goal Feasibility & FIRE Readiness */}
+              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" fontWeight="800">
+                    8 &amp; 9. Financial Independence &amp; FIRE Readiness Engine
+                  </Typography>
+                  <ToggleButtonGroup
+                    size="small"
+                    value={fireMode}
+                    exclusive
+                    onChange={(_, val) => val && setFireMode(val)}
+                  >
+                    <ToggleButton value="lean">Lean FIRE</ToggleButton>
+                    <ToggleButton value="standard">Standard</ToggleButton>
+                    <ToggleButton value="fat">Fat FIRE</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+
+                <GridTyped container spacing={2}>
+                  <GridTyped item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                      <Typography variant="caption" color="text.secondary">TARGET CAPITAL</Typography>
+                      <Typography variant="h6" fontWeight="800" color="primary.main">
+                        {formatAmount(fireMode === 'lean' ? result.leanFireTarget : fireMode === 'fat' ? result.fatFireTarget : result.standardFireTarget)}
+                      </Typography>
+                    </Paper>
+                  </GridTyped>
+                  <GridTyped item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                      <Typography variant="caption" color="text.secondary">CURRENT ATTAINMENT</Typography>
+                      <Typography variant="h6" fontWeight="800" color="success.main">
+                        {result.fireAttainmentPct}%
+                      </Typography>
+                    </Paper>
+                  </GridTyped>
+                  <GridTyped item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                      <Typography variant="caption" color="text.secondary">ESTIMATED TIME TO FIRE</Typography>
+                      <Typography variant="h6" fontWeight="800">
+                        {result.yearsToFire} Years
+                      </Typography>
+                    </Paper>
+                  </GridTyped>
+                </GridTyped>
+              </Card>
+                </Stack>
+              )}
+
+              {/* TAB 4: ACTION PLAYBOOK & TAX */}
+              {activeSectionTab === 'triage' && (
+                <Stack spacing={3.5}>
+                  {/* Feature 10 & 11: Health Insurance & Discretionary Leakage */}
+              <GridTyped container spacing={2}>
+                <GridTyped item xs={12} sm={6}>
+                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 0.5 }}>
+                      10. Health Insurance Safety Floor
+                    </Typography>
+                    <Typography variant="body2" color={result.healthInsuranceDeficit > 0 ? 'warning.main' : 'success.main'}>
+                      {result.healthInsuranceDeficit > 0
+                        ? `Deficit: ${formatAmount(result.healthInsuranceDeficit)} (Current: ${formatAmount(data.healthInsuranceCover)})`
+                        : `✓ Full ₹10 Lakhs Coverage Maintained`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Protects your liquid investments from emergency hospital bill erosion.
+                    </Typography>
+                  </Card>
+                </GridTyped>
+
+                <GridTyped item xs={12} sm={6}>
+                  <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight="800" sx={{ mb: 0.5 }}>
+                      11. Discretionary Spending Leakage
+                    </Typography>
+                    <Typography variant="body2">
+                      Wants: <strong>{result.discretionaryLeakageRatio}%</strong> of income (Golden standard: &le; 30%)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Savings Discipline Rate: <strong>{result.savingsRate}%</strong> of monthly income.
+                    </Typography>
+                  </Card>
+                </GridTyped>
+              </GridTyped>
+                  {/* Feature 12 & 13: Tax Inefficiency & Debt Payoff Accelerator */}
+              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight="800" sx={{ mb: 1.5 }}>
+                  12 &amp; 13. Tax Inefficiency &amp; Debt Payoff Acceleration Engine
+                </Typography>
+                <GridTyped container spacing={2}>
+                  <GridTyped item xs={12} sm={6}>
+                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2.5 }}>
+                      <Typography variant="subtitle2" fontWeight="700">
+                        🧾 Recommended Regime: <strong>{result.recommendedTaxRegime}</strong>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Potential annual direct tax savings: <strong>{formatAmount(result.taxSavingsPotential)}/year</strong>.
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Audit Section 80C, 80D, and NPS Tier-1 deductions to minimize leakage.
+                      </Typography>
+                    </Paper>
+                  </GridTyped>
+
+                  <GridTyped item xs={12} sm={6}>
+                    <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2.5 }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="subtitle2" fontWeight="700">
+                          💳 Strategy: {debtStrategy === 'avalanche' ? 'Avalanche' : 'Snowball'}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={() => setDebtStrategy(debtStrategy === 'avalanche' ? 'snowball' : 'avalanche')}
+                          sx={{ fontSize: '0.7rem' }}
+                        >
+                          Switch
+                        </Button>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Payoff Speedup: <strong>{result.avalancheMonthsSaved} months earlier</strong>.
+                      </Typography>
+                      <Typography variant="caption" color="success.main" fontWeight="700">
+                        Total Interest Saved: {formatAmount(result.avalancheInterestSaved)}
+                      </Typography>
+                    </Paper>
+                  </GridTyped>
+                </GridTyped>
+              </Card>
+                  {/* Feature 20: Triage Playbook & Multi-Format Export */}
+              <Card sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="h6" fontWeight="800">
+                    20. Crisis Mitigation Playbook &amp; Export Center
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Download fontSize="small" />}
+                      onClick={downloadJsonReport}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      Download JSON
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<ContentCopy fontSize="small" />}
+                      onClick={copyAuditMemo}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      {copiedReport ? '✓ Copied Memo!' : 'Export Clipboard Memo'}
+                    </Button>
+                  </Stack>
+                </Box>
+
+                <Stack spacing={1.5}>
+                  {result.triagePlaybook.map((play, idx) => (
+                    <Paper
+                      key={idx}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        borderLeft: '4px solid',
+                        borderColor: play.priority === 'P1' ? 'error.main' : play.priority === 'P2' ? 'warning.main' : 'info.main',
+                        bgcolor: 'background.default',
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                        <Chip
+                          label={play.priority}
+                          size="small"
+                          color={play.priority === 'P1' ? 'error' : play.priority === 'P2' ? 'warning' : 'info'}
+                          sx={{ fontWeight: 800, height: 20, fontSize: '0.7rem' }}
+                        />
+                        <Typography variant="subtitle2" fontWeight="800">
+                          {play.title}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary">
+                        {play.detail}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Card>
+                </Stack>
+              )}
             </Stack>
           )}
         </GridTyped>

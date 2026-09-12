@@ -23,6 +23,7 @@ import {
   Grow,
   CircularProgress,
   Alert,
+  AlertTitle,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -99,6 +100,27 @@ import { goalService, FinancialGoal } from '@/services/goalService';
 import { accountabilityService, AccountabilityPartner } from '@/services/accountabilityService';
 import { withdrawalService, EmergencyAnomalyResult } from '@/services/withdrawalService';
 import { resilienceService, AIResilienceSummary } from '@/services/resilienceService';
+import {
+  employeeService,
+  EmployeeProfile,
+  CompanyIntelligence,
+  EmployeeSkill,
+  LoanAffordability,
+  ScenarioSimulationResult,
+  RiskExplanationData
+} from '@/services/employeeService';
+import {
+  Business,
+  School,
+  BadgeOutlined,
+  LocationOn,
+  PlayArrow,
+  ListAlt,
+  AutoAwesome,
+  HelpOutline,
+  Insights,
+  Close
+} from '@mui/icons-material';
 
 // 🔥 Use token-enabled axios client
 import api from "@/utils/axiosClient";
@@ -239,10 +261,58 @@ export default function Dashboard() {
   const [partners, setPartners] = useState<AccountabilityPartner[]>([]);
   const [resilience, setResilience] = useState<AIResilienceSummary | null>(null);
   const [emergencyPatterns, setEmergencyPatterns] = useState<EmergencyAnomalyResult | null>(null);
+  const [pendingWithdrawalsCount, setPendingWithdrawalsCount] = useState<number>(0);
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('500');
   const [isDepositing, setIsDepositing] = useState(false);
+
+  // Employee Intelligence Platform States
+  const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
+  const [companyIntelligence, setCompanyIntelligence] = useState<CompanyIntelligence | null>(null);
+  const [employeeSkills, setEmployeeSkills] = useState<EmployeeSkill[]>([]);
+  const [loanAffordability, setLoanAffordability] = useState<LoanAffordability | null>(null);
+
+  // Resilience Command Center Interactive States
+  const [analyzeRiskOpen, setAnalyzeRiskOpen] = useState(false);
+  const [whyScoreOpen, setWhyScoreOpen] = useState(false);
+  const [riskExplanation, setRiskExplanation] = useState<RiskExplanationData | null>(null);
+  const [loadingRiskExplanation, setLoadingRiskExplanation] = useState(false);
+
+  const [whatNextOpen, setWhatNextOpen] = useState(false);
+
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [selectedScenario, setSelectedScenario] = useState<'salary_cut' | 'layoff_shock' | 'rate_hike' | 'emergency_expense' | 'high_loan_emi'>('salary_cut');
+  const [scenarioResult, setScenarioResult] = useState<ScenarioSimulationResult | null>(null);
+  const [simulatingScenario, setSimulatingScenario] = useState(false);
+
+  const handleOpenWhyScore = async () => {
+    setWhyScoreOpen(true);
+    if (!riskExplanation) {
+      try {
+        setLoadingRiskExplanation(true);
+        const data = await employeeService.getRiskExplanation();
+        setRiskExplanation(data);
+      } catch (err) {
+        console.error('Failed to load risk explanation:', err);
+      } finally {
+        setLoadingRiskExplanation(false);
+      }
+    }
+  };
+
+  const handleRunScenario = async (type: 'salary_cut' | 'layoff_shock' | 'rate_hike' | 'emergency_expense' | 'high_loan_emi') => {
+    try {
+      setSelectedScenario(type);
+      setSimulatingScenario(true);
+      const res = await employeeService.simulateScenario({ type });
+      setScenarioResult(res);
+    } catch (err) {
+      console.error('Failed to simulate scenario:', err);
+    } finally {
+      setSimulatingScenario(false);
+    }
+  };
 
   // AI-Powered Financial Suggestions Generator
   const generateFinancialSuggestions = useCallback((data: DashboardData): FinancialSuggestion[] => {
@@ -377,6 +447,11 @@ export default function Dashboard() {
         partnersRes,
         resilienceRes,
         patternsRes,
+        withdrawalsRes,
+        employeeProfileRes,
+        companyRes,
+        skillsRes,
+        loanRes,
       ] = await Promise.allSettled([
         api.get("/finance/healthscore"),
         api.get("/finance/survival"),
@@ -388,6 +463,11 @@ export default function Dashboard() {
         accountabilityService.getPartners(),
         resilienceService.getResilienceSummary(),
         withdrawalService.getEmergencyPatterns(),
+        withdrawalService.getWithdrawals(),
+        employeeService.getProfile(),
+        employeeService.getCompanyIntelligence(),
+        employeeService.getSkills(),
+        employeeService.getLoanAffordability(),
       ]);
 
       const healthData =
@@ -427,6 +507,22 @@ export default function Dashboard() {
       }
       if (patternsRes.status === 'fulfilled' && patternsRes.value) {
         setEmergencyPatterns(patternsRes.value);
+      }
+      if (withdrawalsRes.status === 'fulfilled' && Array.isArray(withdrawalsRes.value)) {
+        const pendingCount = withdrawalsRes.value.filter((w: any) => w.status === 'pending').length;
+        setPendingWithdrawalsCount(pendingCount);
+      }
+      if (employeeProfileRes.status === 'fulfilled' && employeeProfileRes.value) {
+        setEmployeeProfile(employeeProfileRes.value);
+      }
+      if (companyRes.status === 'fulfilled' && companyRes.value) {
+        setCompanyIntelligence(companyRes.value);
+      }
+      if (skillsRes.status === 'fulfilled' && Array.isArray(skillsRes.value)) {
+        setEmployeeSkills(skillsRes.value);
+      }
+      if (loanRes.status === 'fulfilled' && loanRes.value?.data) {
+        setLoanAffordability(loanRes.value.data);
       }
 
       const dashboardData = {
@@ -538,6 +634,128 @@ export default function Dashboard() {
             </Box>
           </Alert>
         )}
+
+        {/* ---- EMPLOYEE IDENTITY COMMAND BAR ---- */}
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.12)'
+          }}
+        >
+          <GridTyped container spacing={2} alignItems="center">
+            <GridTyped item xs={12} md={7}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Avatar sx={{ width: 54, height: 54, bgcolor: '#2563eb', fontWeight: 800, fontSize: '1.25rem' }}>
+                  RS
+                </Avatar>
+                <Box>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      {employeeProfile?.employeeName || 'Rahul Sharma (Demo User)'}
+                    </Typography>
+                    <Chip
+                      icon={<BadgeOutlined sx={{ fontSize: '1rem !important', color: '#fff !important' }} />}
+                      label={employeeProfile?.employeeId || 'EMP-RKVT-1001'}
+                      sx={{ bgcolor: '#2563eb', color: '#fff', fontWeight: 700, height: 26 }}
+                    />
+                  </Stack>
+                  <Typography variant="body2" sx={{ color: '#94a3b8', mt: 0.3 }}>
+                    <strong>{employeeProfile?.designation || 'Software Engineer'}</strong> • {employeeProfile?.department || 'Engineering'} •{' '}
+                    <Business sx={{ fontSize: '0.95rem', verticalAlign: 'middle', ml: 0.5 }} /> {employeeProfile?.companyName || 'Example Technologies Pvt. Ltd.'}
+                  </Typography>
+                </Box>
+              </Stack>
+            </GridTyped>
+            <GridTyped item xs={12} md={5}>
+              <Stack direction="row" spacing={1.5} justifyContent={{ xs: 'flex-start', md: 'flex-end' }} flexWrap="wrap">
+                <Box sx={{ p: 1, px: 1.5, bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Monthly Take-Home</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#38bdf8' }}>
+                    {formatAmount(employeeProfile?.monthlyTakeHome || 65000)}
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 1, px: 1.5, bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Corporate Risk</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#fbbf24' }}>
+                    {companyIntelligence?.riskLevel || 'MODERATE'} (Health: {companyIntelligence?.healthScore || 72})
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setAnalyzeRiskOpen(true)}
+                  startIcon={<Security />}
+                  sx={{
+                    bgcolor: '#2563eb',
+                    color: '#fff',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: '#1d4ed8' }
+                  }}
+                >
+                  Analyze Risk
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleOpenWhyScore}
+                  startIcon={<HelpOutline />}
+                  sx={{
+                    color: '#fff',
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' }
+                  }}
+                >
+                  Why This Score?
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setScenarioOpen(true);
+                    if (!scenarioResult) handleRunScenario('salary_cut');
+                  }}
+                  startIcon={<PlayArrow />}
+                  sx={{
+                    color: '#38bdf8',
+                    borderColor: '#38bdf8',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'rgba(56, 189, 248, 0.1)', borderColor: '#38bdf8' }
+                  }}
+                >
+                  Run Scenario
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  href="/career"
+                  endIcon={<ArrowForward />}
+                  sx={{
+                    color: '#fff',
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' }
+                  }}
+                >
+                  Career Center
+                </Button>
+              </Stack>
+            </GridTyped>
+          </GridTyped>
+        </Paper>
 
         {/* HEADER */}
         <Box sx={{ mb: 6 }}>
@@ -658,13 +876,46 @@ export default function Dashboard() {
             ⚡ Resilience Command Bar
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              startIcon={<HelpOutline />}
+              onClick={handleOpenWhyScore}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              Why This Score?
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="warning"
+              startIcon={<ListAlt />}
+              onClick={() => setWhatNextOpen(true)}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, color: '#fff' }}
+            >
+              What Should I Do Next?
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="info"
+              startIcon={<PlayArrow />}
+              onClick={() => {
+                setScenarioOpen(true);
+                if (!scenarioResult) handleRunScenario('salary_cut');
+              }}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              Run Risk Scenario
+            </Button>
             <Button size="small" variant="outlined" startIcon={<Shield />} href="/emergency" sx={{ borderRadius: 2, textTransform: 'none' }}>
               Emergency Buffer
             </Button>
             <Button
               size="small"
-              variant="contained"
-              color="primary"
+              variant="outlined"
+              color="inherit"
               startIcon={<Psychology />}
               onClick={() => setCopilotOpen(true)}
               sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
@@ -855,6 +1106,265 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </Grow>
+          </GridTyped>
+        </GridTyped>
+
+        {/* ---- PART Z: PROTECTED SAVINGS CARD ---- */}
+        <Card
+          sx={{
+            mb: 4,
+            borderRadius: 3,
+            border: (theme: any) => `1px solid ${theme.palette.divider}`,
+            background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
+            p: 2.5,
+          }}
+        >
+          <GridTyped container spacing={3} alignItems="center">
+            <GridTyped item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex' }}>
+                  <Shield sx={{ fontSize: 28 }} />
+                </Box>
+                <Box>
+                  <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: 1, color: 'text.secondary' }}>
+                    HIGH-VALUE PROTECTION
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                    Protected Savings Reserve
+                  </Typography>
+                </Box>
+              </Box>
+            </GridTyped>
+
+            <GridTyped item xs={12} sm={6} md={5}>
+              <Stack direction="row" spacing={3} flexWrap="wrap" gap={1}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    WALLET BALANCE
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'success.main' }}>
+                    ₹{(wallet?.balance ?? 100000).toLocaleString('en-IN')}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    PROTECTED THRESHOLD
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                    ₹20,000
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    NOMINEE STATUS
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Chip
+                      size="small"
+                      label={partners.some(p => p.status === 'active') ? 'Active (Nominee)' : 'Active (demo)'}
+                      color="success"
+                      sx={{ fontWeight: 700 }}
+                    />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    PENDING APPROVALS
+                  </Typography>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      fontWeight: 800,
+                      color: pendingWithdrawalsCount > 0 ? 'warning.main' : 'text.secondary',
+                    }}
+                  >
+                    {pendingWithdrawalsCount}
+                  </Typography>
+                </Box>
+              </Stack>
+            </GridTyped>
+
+            <GridTyped item xs={12} sm={6} md={3} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+              <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  href="/accountability"
+                  startIcon={<Security />}
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  View Accountability
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  href="/nominee"
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  Nominee Portal
+                </Button>
+              </Stack>
+            </GridTyped>
+          </GridTyped>
+        </Card>
+
+        {/* ---- PART E: EMPLOYEE INTELLIGENCE & RESILIENCE CLUSTER ---- */}
+        <GridTyped container spacing={3} sx={{ mb: 4 }}>
+          {/* Card 1: Company Stability Meter */}
+          <GridTyped item xs={12} md={4}>
+            <Card sx={{ height: '100%', borderRadius: 3, border: '1px solid rgba(245, 158, 11, 0.3)', bgcolor: 'background.paper' }}>
+              <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    COMPANY STABILITY METER
+                  </Typography>
+                  <Chip
+                    label={companyIntelligence?.riskLevel || 'MODERATE'}
+                    color="warning"
+                    size="small"
+                    sx={{ fontWeight: 800 }}
+                  />
+                </Stack>
+                <Box sx={{ my: 2, display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: 'warning.main' }}>
+                    {companyIntelligence?.healthScore || 72}/100
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Corporate Health</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                  {companyIntelligence?.riskExplanation || 'Revenue growth has slowed while tech hiring has contracted. Employment stability is moderately elevated.'}
+                </Typography>
+                <Divider sx={{ my: 1.5 }} />
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Hiring Trend:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>Selective / Headcount Contraction</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Restructuring Signals:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'warning.main' }}>Moderate (Non-core units)</Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  href="/career"
+                  endIcon={<ArrowForward />}
+                  fullWidth
+                  sx={{ mt: 2, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  View Corporate Outlook
+                </Button>
+              </CardContent>
+            </Card>
+          </GridTyped>
+
+          {/* Card 2: Career Resilience & Skill Roadmap */}
+          <GridTyped item xs={12} md={4}>
+            <Card sx={{ height: '100%', borderRadius: 3, border: '1px solid rgba(59, 130, 246, 0.3)', bgcolor: 'background.paper' }}>
+              <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    CAREER RESILIENCE & SKILLS
+                  </Typography>
+                  <Chip
+                    label="Active Roadmap"
+                    color="primary"
+                    size="small"
+                    sx={{ fontWeight: 800 }}
+                  />
+                </Stack>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ my: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Current</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800 }}>61/100</Typography>
+                  </Box>
+                  <ArrowForward sx={{ color: 'primary.main' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">After Cloud + AI</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.main' }}>84/100</Typography>
+                  </Box>
+                </Stack>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                  High-priority gaps in AWS Cloud (0-3m) and Applied AI/LLMs (3-6m). Completing these improves stability against restructuring.
+                </Typography>
+                <Divider sx={{ my: 1.5 }} />
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Phase 1 (0-3m):</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>AWS Solutions Architect</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Phase 2 (3-6m):</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>Applied Generative AI / RAG</Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  href="/career"
+                  endIcon={<ArrowForward />}
+                  fullWidth
+                  sx={{ mt: 2, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  Career Transition Mode
+                </Button>
+              </CardContent>
+            </Card>
+          </GridTyped>
+
+          {/* Card 3: Resilient Loan Affordability */}
+          <GridTyped item xs={12} md={4}>
+            <Card sx={{ height: '100%', borderRadius: 3, border: '1px solid rgba(16, 185, 129, 0.3)', bgcolor: 'background.paper' }}>
+              <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    RESILIENT LOAN AFFORDABILITY
+                  </Typography>
+                  <Chip
+                    label="Safe vs Bank"
+                    color="success"
+                    size="small"
+                    sx={{ fontWeight: 800 }}
+                  />
+                </Stack>
+                <Box sx={{ my: 2 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main' }}>
+                    {formatAmount(10000)} / mo
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Max Safe New EMI (Bank will offer {formatAmount(24500)})
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                  Safe Loan: {formatAmount(600000)} – {formatAmount(850000)}. Capping EMI at ₹10,000 preserves your 6-month emergency buffer without default hazard.
+                </Typography>
+                <Divider sx={{ my: 1.5 }} />
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Safe Borrowing Range:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>₹6.0L – ₹8.5L</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">Bank Lending Limit:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'error.main' }}>₹22.0L (Hazardous)</Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  href="/career"
+                  endIcon={<ArrowForward />}
+                  fullWidth
+                  sx={{ mt: 2, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  Loan Affordability Details
+                </Button>
+              </CardContent>
+            </Card>
           </GridTyped>
         </GridTyped>
 
@@ -1870,6 +2380,344 @@ export default function Dashboard() {
             >
               {isDepositing ? 'Depositing...' : 'Confirm Deposit'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* ================= RESILIENCE COMMAND CENTER MODALS ================= */}
+
+        {/* 1. ANALYZE MY RISK MODAL */}
+        <Dialog open={analyzeRiskOpen} onClose={() => setAnalyzeRiskOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Comprehensive Financial & Career Risk Audit</span>
+            <IconButton onClick={() => setAnalyzeRiskOpen(false)} size="small"><Close /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body1" sx={{ color: 'text.secondary', mb: 2 }}>
+                FINFOLIO unifies your employment context, employer corporate viability, and personal liquidity into a single resilience assessment.
+              </Typography>
+              <GridTyped container spacing={2}>
+                <GridTyped item xs={12} sm={4}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center', borderColor: 'primary.main' }}>
+                    <Typography variant="caption" color="text.secondary">Corporate Viability</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'warning.main', my: 0.5 }}>
+                      {companyIntelligence?.riskLevel || 'MODERATE'} ({companyIntelligence?.healthScore || 72}/100)
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                      Revenue plateau & hiring discipline
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+                <GridTyped item xs={12} sm={4}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center', borderColor: 'success.main' }}>
+                    <Typography variant="caption" color="text.secondary">Job Stability</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.main', my: 0.5 }}>
+                      {employeeProfile?.jobStabilityScore || 74}/100
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                      Core software engineering demand
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+                <GridTyped item xs={12} sm={4}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center', borderColor: 'info.main' }}>
+                    <Typography variant="caption" color="text.secondary">Liquid Runway</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'info.main', my: 0.5 }}>
+                      6.0 Months (180d)
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                      ₹2,10,000 emergency reserve intact
+                    </Typography>
+                  </Paper>
+                </GridTyped>
+              </GridTyped>
+            </Box>
+
+            <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+              <strong>Composite Finding</strong>: Your personal liquidity is rock-solid (6.0 months runway), but employer growth deceleration (-3.4% EBITDA) and missing Cloud/AI certifications create career vulnerability. Upgrading AWS & AI skills expands your transition match from 61% to 84%.
+            </Alert>
+
+            <Stack spacing={1.5}>
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>Recommended Protective Playbook:</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  1. Keep discretionary withdrawals under the ₹20,000 nominee threshold to preserve full 6-month runway.
+                  <br />2. Avoid high-risk commercial loans up to the bank limit (₹22.0L); maintain the safe ceiling of ₹10,000/mo EMI.
+                  <br />3. Enroll in AWS Solutions Architect Associate (Phase 1) to eliminate restructuring risk.
+                </Typography>
+              </Paper>
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button variant="outlined" onClick={() => router.push('/career')} sx={{ textTransform: 'none', fontWeight: 700 }}>
+              Open Career Resilience Center
+            </Button>
+            <Button variant="contained" onClick={() => setAnalyzeRiskOpen(false)}>Done</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 2. WHY THIS SCORE MODAL */}
+        <Dialog open={whyScoreOpen} onClose={() => setWhyScoreOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Mathematical Score Explanations & Factor Breakdown</span>
+            <IconButton onClick={() => setWhyScoreOpen(false)} size="small"><Close /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            {loadingRiskExplanation ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}>
+                <CircularProgress size={36} sx={{ mb: 2 }} />
+                <Typography variant="body2" color="text.secondary">Retrieving mathematical components from PostgreSQL...</Typography>
+              </Box>
+            ) : (
+              <Stack spacing={2.5}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main', mb: 1 }}>
+                    1. Job Stability Score: {riskExplanation?.scores?.jobStabilityScore?.score || 74}/100 ({riskExplanation?.scores?.jobStabilityScore?.rating || 'Good'})
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    {riskExplanation?.scores?.jobStabilityScore?.summary || 'Evaluated across core competencies, industry demand, and company financial deceleration.'}
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {riskExplanation?.scores?.jobStabilityScore?.components?.map((c, idx) => (
+                      <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', p: 0.8, bgcolor: 'action.hover', borderRadius: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>{c.factor}: <span style={{ color: '#64748b' }}>{c.note}</span></Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: c.weight.startsWith('+') ? 'success.main' : 'error.main' }}>{c.weight}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'warning.main', mb: 1 }}>
+                    2. Company Financial Health: {riskExplanation?.scores?.companyHealthScore?.score || 72}/100 (Risk: {riskExplanation?.scores?.companyHealthScore?.riskLevel || 'MODERATE'})
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    {riskExplanation?.scores?.companyHealthScore?.summary || 'Example Tech is viable but experiencing plateaued revenue and margin compression.'}
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {riskExplanation?.scores?.companyHealthScore?.components?.map((c, idx) => (
+                      <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', p: 0.8, bgcolor: 'action.hover', borderRadius: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>{c.factor}</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>{c.value}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main', mb: 1 }}>
+                    3. Personal Financial Resilience: {riskExplanation?.scores?.financialResilienceScore?.score || 78}/100
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {riskExplanation?.scores?.financialResilienceScore?.components?.map((c, idx) => (
+                      <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', p: 0.8, bgcolor: 'action.hover', borderRadius: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>{c.factor}</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>{c.value}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'info.main', mb: 1 }}>
+                    4. Career Resilience Optimization Target
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {riskExplanation?.scores?.careerResilienceScore?.summary || `Current resilience is ${employeeProfile?.careerResilienceScore || 61}/100. Upgrading AWS Cloud and Applied AI skills raises score to ${employeeProfile?.potentialResilienceScore || 84}/100.`}
+                  </Typography>
+                </Paper>
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button variant="contained" onClick={() => setWhyScoreOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 3. WHAT SHOULD I DO NEXT MODAL */}
+        <Dialog open={whatNextOpen} onClose={() => setWhatNextOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Prioritized Action Plan for Rahul</span>
+            <IconButton onClick={() => setWhatNextOpen(false)} size="small"><Close /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2}>
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #10b981' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main' }}>
+                  1. Maintain Liquid Runway Lock (Active)
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Your ₹20,000 threshold and Nominee governance are active. Never bypass this lock for non-essential discretionary expenses.
+                </Typography>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #ef4444' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main' }}>
+                  2. Phase 1 Upskilling: AWS Cloud Associate
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Completing Cloud & AWS solutions takes your career resilience score from 61 to 72 and elevates transition alignment to 91%.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => { setWhatNextOpen(false); router.push('/career'); }}
+                  sx={{ mt: 1, textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
+                >
+                  Go to Skills Roadmap
+                </Button>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #f59e0b' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'warning.main' }}>
+                  3. Set Borrowing Ceiling at ₹10,000/mo
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Banks will approve loans up to ₹22.0L (₹24.5k EMI). FinFolio recommends capping new debt to ₹10,000 EMI to preserve your ₹22,000 monthly living surplus.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => { setWhatNextOpen(false); router.push('/career'); }}
+                  sx={{ mt: 1, textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
+                >
+                  View Loan Limits
+                </Button>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #3b82f6' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                  4. Prepare 233-Day Emergency Freeze Plan
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  In case of sudden layoff shock, switching from standard expenses (₹43k/mo) to survival freeze (₹27k/mo) extends your buffer from 146 days to 233 days.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => { setWhatNextOpen(false); router.push('/emergency'); }}
+                  sx={{ mt: 1, textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
+                >
+                  Open Emergency Fund
+                </Button>
+              </Paper>
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button variant="contained" onClick={() => setWhatNextOpen(false)}>Done</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 4. RUN WHAT-IF SCENARIO MODAL */}
+        <Dialog open={scenarioOpen} onClose={() => setScenarioOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Interactive What-If Resilience Simulator</span>
+            <IconButton onClick={() => setScenarioOpen(false)} size="small"><Close /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Simulate economic disruptions against your live financial profile to observe instant impacts on take-home pay, emergency runway, and debt burden.
+            </Typography>
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
+              {[
+                { id: 'salary_cut', label: '20% Salary Cut' },
+                { id: 'layoff_shock', label: 'Layoff Shock' },
+                { id: 'rate_hike', label: 'Loan Rate Hike (+2%)' },
+                { id: 'emergency_expense', label: '₹50,000 Emergency' },
+                { id: 'high_loan_emi', label: 'Bank Max Loan' },
+              ].map((s) => (
+                <Button
+                  key={s.id}
+                  size="small"
+                  variant={selectedScenario === s.id ? 'contained' : 'outlined'}
+                  color="primary"
+                  onClick={() => handleRunScenario(s.id as any)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                >
+                  {s.label}
+                </Button>
+              ))}
+            </Stack>
+
+            {simulatingScenario ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}>
+                <CircularProgress size={36} sx={{ mb: 2 }} />
+                <Typography variant="body2" color="text.secondary">Computing scenario consequences from PostgreSQL...</Typography>
+              </Box>
+            ) : scenarioResult ? (
+              <Stack spacing={2.5}>
+                <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                  <AlertTitle sx={{ fontWeight: 800 }}>{scenarioResult.scenarioTitle}</AlertTitle>
+                  {scenarioResult.verdict}
+                </Alert>
+
+                <GridTyped container spacing={2}>
+                  <GridTyped item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', mb: 1 }}>
+                        Baseline State
+                      </Typography>
+                      <Stack spacing={0.8}>
+                        {Object.entries(scenarioResult.before || {}).map(([k, v]) => (
+                          <Box key={k} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>
+                              {k.replace(/([A-Z])/g, ' $1')}:
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                              {typeof v === 'number' && (k.toLowerCase().includes('income') || k.toLowerCase().includes('takehome') || k.toLowerCase().includes('surplus') || k.toLowerCase().includes('reserve') || k.toLowerCase().includes('emi') || k.toLowerCase().includes('commitments'))
+                                ? formatAmount(v)
+                                : String(v)}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  </GridTyped>
+
+                  <GridTyped item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.error.main, 0.04), borderColor: 'error.main' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main', mb: 1 }}>
+                        Simulated Consequence
+                      </Typography>
+                      <Stack spacing={0.8}>
+                        {Object.entries(scenarioResult.after || {}).map(([k, v]) => (
+                          <Box key={k} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>
+                              {k.replace(/([A-Z])/g, ' $1')}:
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'error.main' }}>
+                              {typeof v === 'number' && (k.toLowerCase().includes('income') || k.toLowerCase().includes('takehome') || k.toLowerCase().includes('surplus') || k.toLowerCase().includes('reserve') || k.toLowerCase().includes('emi') || k.toLowerCase().includes('cost'))
+                                ? formatAmount(v)
+                                : String(v)}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  </GridTyped>
+                </GridTyped>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.04), borderColor: 'success.main' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main', mb: 1 }}>
+                    Actionable Mitigation Playbook:
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {(scenarioResult.mitigationPlaybook || []).map((act, idx) => (
+                      <Typography key={idx} variant="body2">
+                        ✔ {act}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Paper>
+              </Stack>
+            ) : null}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button variant="contained" onClick={() => setScenarioOpen(false)}>Done</Button>
           </DialogActions>
         </Dialog>
 

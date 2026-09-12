@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ImpactAnalysisService } from '../services/impactAnalysisService.js';
 import { WithdrawalService } from '../services/withdrawalService.js';
 import { WalletService } from '../services/walletService.js';
@@ -9,6 +9,9 @@ describe('FinFolio Phase 5: Withdrawal + Deterministic Impact Analysis', () => {
   const userId = 101;
 
   beforeAll(async () => {
+    DatabaseService.resetInMemoryState();
+    DatabaseService.setUseInMemory(true);
+
     // Seed wallet with funds for testing
     await WalletService.deposit(userId, 5000, 'initial_deposit', 'Seed testing funds');
 
@@ -33,6 +36,10 @@ describe('FinFolio Phase 5: Withdrawal + Deterministic Impact Analysis', () => {
       requiresApproval: true,
       maxInstantAmount: 0,
     });
+  });
+
+  afterAll(() => {
+    DatabaseService.setUseInMemory(false);
   });
 
   describe('Deterministic Pre-Transaction Consequence Analysis', () => {

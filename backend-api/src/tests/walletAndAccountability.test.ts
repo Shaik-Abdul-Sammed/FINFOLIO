@@ -79,7 +79,7 @@ describe('FinFolio Phase 1: Foundation & Security', () => {
       expect(wallet).toBeDefined();
       expect(wallet.userId).toBe(testUserId);
       expect(wallet.balance).toBe(0);
-      expect(wallet.currency).toBe('USD');
+      expect(wallet.currency).toBe('INR');
     });
 
     it('should deposit funds and record a completed transaction', async () => {

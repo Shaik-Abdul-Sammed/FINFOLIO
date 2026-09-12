@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { EmergencyService } from '../services/emergencyService.js';
 import { WithdrawalService } from '../services/withdrawalService.js';
 import { WalletService } from '../services/walletService.js';
@@ -11,6 +11,7 @@ describe('FinFolio Phase 6: Emergency Mode & Pattern Anomaly Detection', () => {
 
   beforeAll(async () => {
     DatabaseService.resetInMemoryState();
+    DatabaseService.setUseInMemory(true);
     // Seed user wallet with initial funds
     await WalletService.deposit(userId, 2000, 'initial_deposit', 'Seed wallet for emergency tests');
 
@@ -30,6 +31,10 @@ describe('FinFolio Phase 6: Emergency Mode & Pattern Anomaly Detection', () => {
       requiresApproval: true,
       maxInstantAmount: 0,
     });
+  });
+
+  afterAll(() => {
+    DatabaseService.setUseInMemory(false);
   });
 
   describe('Emergency Immediate Execution & Security Invariants', () => {
