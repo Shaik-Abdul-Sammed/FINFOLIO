@@ -1,3 +1,5 @@
+const { i18n } = require('./next-i18next.config');
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
@@ -9,6 +11,7 @@ const withPWA = require('next-pwa')({
 const nextConfig = withPWA({
   reactStrictMode: true,
   output: 'standalone',
+  i18n,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
