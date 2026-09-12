@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int                    @id @default(autoincrement())
+  email                 String                 @unique
+  name                  String
+  pin                   String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  wallets               Wallet[]
+  withdrawalRequests    WithdrawalRequest[]
+  partnerNotifications  PartnerNotification[]  @relation("UserPartnerNotifications")
+  accountabilityPartners AccountabilityPartner[]
+}
+
+model Wallet {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  balance     Float    @default(0)
+  currency    String   @default("INR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model WithdrawalRequest {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  walletId              Int
+  amount                Float
+  category              String
+  reason                String
+  status                String   @default("pending")
+  estimatedDelayDays    Int      @default(0)
+  runwayImpactMonths    Float    @default(0)
+  isEmergency           Boolean  @default(false)
+  isOverride            Boolean  @default(false)
+  partnerNotes          String?
+  decisionDate          DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id])
+}
+
+model AccountabilityPartner {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  name        String
+  email       String
+  relation    String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model PartnerNotification {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  partnerId     Int
+  partnerEmail  String
+  type          String
+  title         String
+  message       String
+  details       Json?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  user          User     @relation("UserPartnerNotifications", fields: [userId], references: [id])
+}

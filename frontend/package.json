@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
@@ -26,6 +27,7 @@
     "recharts": "^2.10.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.41.0",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@types/node": "^20",

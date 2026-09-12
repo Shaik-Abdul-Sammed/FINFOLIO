@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { datasetService } from '../services/datasetService.js';
+import { cacheService } from '../config/cache.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -27,7 +28,29 @@ export const getSalaryPrediction = async (req: Request, res: Response): Promise<
             return;
         }
 
+        // Phase 2: Redis Caching implementation
+        const cacheKey = `salary_pred_${yearsExperience}`;
+        const cachedPrediction = await cacheService.get('mlPrediction', cacheKey);
+        
+        if (cachedPrediction) {
+            res.json({
+                success: true,
+                data: cachedPrediction,
+                source: 'cache'
+            });
+            return;
+        }
+
         const predictedSalary = datasetService.predictSalary(yearsExperience);
+        
+        const responseData = {
+            predictedSalary,
+            yearsExperience,
+            currency: 'INR',
+        };
+        
+        // Save to Redis cache for 30 minutes
+        await cacheService.set('mlPrediction', cacheKey, responseData, 1800);
         const stats = datasetService.getSalaryStats();
         const allData = datasetService.getSalaryData();
 
